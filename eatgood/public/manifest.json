@@ -1,12 +1,11 @@
 {
-  "name": "Synthex — AI Workspace",
-  "short_name": "Synthex",
-  "description": "Your intelligent productivity companion powered by AI.",
+  "name": "AnchorFuel",
+  "short_name": "AnchorFuel",
+  "description": "Camera-first AI health coach for traveling professionals",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#F9FAFB",
-  "theme_color": "#059669",
-  "orientation": "portrait",
+  "background_color": "#faf5ef",
+  "theme_color": "#c2651a",
   "icons": [
     {
       "src": "/icon-192.png",

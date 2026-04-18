@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans, DM_Sans } from 'next/font/google';
 import './globals.css';
-import { MockDataProvider } from '@/context/MockDataContext';
+import { UserProfileProvider } from '@/context/UserProfileContext';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -18,13 +18,13 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Synthex — AI Workspace',
-  description: 'Your intelligent productivity companion powered by AI.',
+  title: 'AnchorFuel — AI Health Coach',
+  description: 'Camera-first AI nutritionist for traveling professionals. Point, scan, eat smart.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Synthex',
+    title: 'AnchorFuel',
   },
 };
 
@@ -33,7 +33,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#059669',
+  themeColor: '#c2651a',
 };
 
 export default function RootLayout({
@@ -44,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${jakarta.variable} ${dmSans.variable}`}>
       <body>
-        <MockDataProvider>{children}</MockDataProvider>
+        <UserProfileProvider>{children}</UserProfileProvider>
       </body>
     </html>
   );
