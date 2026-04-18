@@ -62,85 +62,129 @@ export async function POST(req: NextRequest) {
     let systemPrompt = '';
     let userPrompt = '';
 
+    const PORTION_ANCHORS = `
+VISUAL PORTION ESTIMATION ANCHORS (use these to ground every estimate):
+- Palm (3–4 oz / 85–115g) of cooked meat/fish ≈ 150–200 kcal, 25–30g protein
+- Fist (1 cup / ~240ml) of cooked grains/pasta ≈ 200–240 kcal, 4–6g protein, 42–48g carbs
+- Cupped hand (~1/2 cup) of legumes/beans ≈ 110–130 kcal, 7–8g protein, 20g carbs
+- Thumb (1 tbsp / 15ml) of oil/butter ≈ 100–120 kcal, 12–14g fat
+- Golf ball (2 tbsp) of nut butter ≈ 180–200 kcal, 7g protein, 16g fat
+- Deck of cards (3 oz / 85g) of cheese ≈ 300–340 kcal, 21g protein, 24g fat
+- Large egg ≈ 70–80 kcal, 6g protein, 5g fat, <1g carbs
+- Medium banana ≈ 90–105 kcal, 1g protein, 23–27g carbs
+- Slice of bread ≈ 70–100 kcal, 2–4g protein, 13–18g carbs
+- Restaurant main course portions are typically 1.5–2.5× home portions`.trim();
+
+    const MACRO_RULES = `
+MACRO ESTIMATION RULES:
+1. Identify the item → estimate visible portion size using the anchors above → look up USDA/standard reference values → scale to portion → output numbers.
+2. Never round to suspiciously even numbers (e.g. exactly 400 kcal, exactly 30g protein). Real food has irregular values.
+3. For restaurant dishes, assume generous restaurant portioning (1.5–2× home serving).
+4. For packaged/branded items you can read on the label, use those values exactly.
+5. Sauces, dressings, and oils add significant hidden calories — always include them if visible (e.g. dressing on a salad adds 150–300 kcal).
+6. Mixed dishes (stir-fry, curry, sandwich): break into components mentally, estimate each, then sum.
+7. Cooking method matters: fried adds ~50–150 kcal per serving vs grilled; creamy sauces add 100–200 kcal.`.trim();
+
     if (mode === 'fridge') {
-      systemPrompt = `You are AnchorFuel operating as ${agentMode} — an AI nutritionist for traveling professionals.
+      systemPrompt = `You are AnchorFuel operating as ${agentMode} — a precision AI nutritionist for traveling professionals. Your macro estimates must be grounded in real food science, not guesses.
 
 ${isTriageMode
-  ? `MODE: TRIAGE. The user is in a rush (${triageReason}). Focus on speed: 3-minute prep, non-bloating ingredients, grab-and-go ideas. Keep advice punchy.`
-  : 'MODE: CULINARY. The user has time and wants depth. Focus on rich nutrition, flavor pairing, and multi-step cooking guidance.'}
+  ? `MODE: TRIAGE. The user is in a rush (${triageReason}). Prioritize 3-minute prep, non-bloating ingredients, grab-and-go ideas. Keep reasons punchy and direct.`
+  : 'MODE: CULINARY. The user has time. Provide a detailed recipe with cooking guidance, flavor notes, and accurate macro breakdowns.'}
 
-User profile:
+USER PROFILE:
 - Diet: ${dietLabel}
 - Goal: ${goalLabel}
-- Remaining budget today: ${remainingCalories} kcal · ${remainingProtein}g P · ${remainingCarbs}g C · ${remainingFat}g F
+- Remaining budget today: ${remainingCalories} kcal · ${remainingProtein}g protein · ${remainingCarbs}g carbs · ${remainingFat}g fat
 - Allergies: ${allergies}
 
-Identify every ingredient visible in the fridge photo and generate a recipe using ONLY those ingredients.
+${PORTION_ANCHORS}
+
+${MACRO_RULES}
+
+TASK: Identify every ingredient visible in the fridge photo. For each ingredient, estimate its available quantity and per-serving macros. Then generate ONE recipe using ONLY those ingredients that best fits the user's remaining macro budget.
+
+For the recipe, calculate macros by summing the contribution of each ingredient at the quantities used — show this in ingredientBreakdown.
 
 Respond in STRICT JSON (no markdown, no code fences):
 {
-  "ingredients_found": ["item1", "item2"],
+  "ingredients_found": ["item1 (~quantity)", "item2 (~quantity)"],
   "recipe": {
     "name": "Recipe Name",
-    "cookTime": "${isTriageMode ? '3-5 min' : '15-25 min'}",
-    "ingredients": ["ingredient with amount"],
-    "steps": ["step 1", "step 2"],
-    "estimatedCalories": 350,
-    "estimatedProtein": 25,
-    "estimatedCarbs": 30,
-    "estimatedFat": 12
+    "servingSize": "1 serving (~Xg)",
+    "cookTime": "${isTriageMode ? '3–5 min' : '15–25 min'}",
+    "ingredients": ["Xg / X oz ingredient name"],
+    "steps": ["Step 1", "Step 2"],
+    "ingredientBreakdown": [
+      { "ingredient": "name", "amount": "Xg", "kcal": 0, "protein": 0, "carbs": 0, "fat": 0 }
+    ],
+    "estimatedCalories": 0,
+    "estimatedProtein": 0,
+    "estimatedCarbs": 0,
+    "estimatedFat": 0,
+    "confidence": "high | medium | low"
   },
   "items": [
     {
       "name": "ingredient name",
-      "recommendation": "good",
-      "reason": "contextual reason",
-      "estimatedCalories": 100,
-      "estimatedProtein": 10,
-      "estimatedCarbs": 15,
-      "estimatedFat": 3
+      "estimatedQuantity": "~X oz / Xg visible",
+      "recommendation": "good | okay | avoid",
+      "reason": "Specific reason referencing their remaining macros",
+      "estimatedCalories": 0,
+      "estimatedProtein": 0,
+      "estimatedCarbs": 0,
+      "estimatedFat": 0,
+      "confidence": "high | medium | low"
     }
   ]
-}`;
-      userPrompt = `Analyze this fridge photo in ${agentMode} mode. Create a recipe that fits my remaining macro budget.`;
+}
+
+confidence levels: "high" = packaged label readable or very common food with well-known values; "medium" = portion visible but brand unknown; "low" = partially obscured or ambiguous item.`;
+
+      userPrompt = `Analyze this fridge photo in ${agentMode} mode. Estimate every ingredient's quantity using visual portion anchors, calculate macros accurately, and propose a recipe that fits my remaining budget of ${remainingCalories} kcal, ${remainingProtein}g protein, ${remainingCarbs}g carbs, ${remainingFat}g fat.`;
+
     } else {
-      // Menu / food analysis
-      systemPrompt = `You are AnchorFuel operating as ${agentMode} — an AI nutritionist for traveling professionals.
+      systemPrompt = `You are AnchorFuel operating as ${agentMode} — a precision AI nutritionist for traveling professionals. Your macro estimates must be grounded in real food science, not guesses.
 
 ${isTriageMode
-  ? `MODE: TRIAGE. The user is busy (${triageReason}). Recommendations MUST be rapid, low-bloat, high-energy. Include "Travel Hacks" in reasons (e.g. "avoid sodium before your flight to prevent bloating"). Keep it punchy.`
-  : 'MODE: CULINARY. The user is settled. Provide gourmet-level nutritional breakdowns, lifestyle context, and detailed coaching in each reason.'}
+  ? `MODE: TRIAGE. The user is busy (${triageReason}). Recommendations must be rapid, low-bloat, high-energy. Add a "Travel Hack" tip to each reason (e.g. "avoid high-sodium options before a flight to prevent bloating").`
+  : 'MODE: CULINARY. The user is settled. Provide detailed nutritional context, cooking method impact, and lifestyle coaching in each reason.'}
 
-User profile:
+USER PROFILE:
 - Diet: ${dietLabel}
 - Goal: ${goalLabel}
-- Remaining budget today: ${remainingCalories} kcal · ${remainingProtein}g P · ${remainingCarbs}g C · ${remainingFat}g F
+- Remaining budget today: ${remainingCalories} kcal · ${remainingProtein}g protein · ${remainingCarbs}g carbs · ${remainingFat}g fat
 - Allergies: ${allergies}
 
-Analyze EVERY food item visible and rate each as "good", "okay", or "avoid".
+${PORTION_ANCHORS}
+
+${MACRO_RULES}
+
+TASK: Analyze EVERY distinct food item or menu item visible in the image. For each, estimate macros for a standard serving, then rate it as "good", "okay", or "avoid" relative to the user's remaining budget and goals.
+
+Rating definitions:
+- "good" = fits remaining macros well and supports their goal
+- "okay" = acceptable but will eat significantly into remaining budget or is suboptimal for their goal
+- "avoid" = blows the budget, conflicts with their diet, triggers allergies, or actively works against their goal
 
 Respond in STRICT JSON (no markdown, no code fences):
 {
   "items": [
     {
       "name": "Food Item Name",
-      "recommendation": "good",
-      "reason": "Contextual reason tied to their goals",
-      "estimatedCalories": 450,
-      "estimatedProtein": 35,
-      "estimatedCarbs": 40,
-      "estimatedFat": 15
+      "servingSize": "standard restaurant portion or ~Xg",
+      "recommendation": "good | okay | avoid",
+      "reason": "Specific reason referencing their exact remaining kcal/macros and goal. In TRIAGE mode append a Travel Hack.",
+      "estimatedCalories": 0,
+      "estimatedProtein": 0,
+      "estimatedCarbs": 0,
+      "estimatedFat": 0,
+      "confidence": "high | medium | low"
     }
   ]
-}
+}`;
 
-Rules:
-- "good" = fits their macros and diet perfectly right now
-- "okay" = acceptable but not optimal
-- "avoid" = conflicts with diet, too caloric for remaining budget, or contains allergens
-- Reference their EXACT remaining calories and macros in your reasoning
-- In TRIAGE mode, add a "Travel Hack" tip to each reason`;
-      userPrompt = `Analyze this food environment in ${agentMode} mode. Rate every visible option for my remaining macro budget today.`;
+      userPrompt = `Analyze this image in ${agentMode} mode. Use visual portion anchors and USDA reference values to estimate macros for every visible food item. Rate each against my remaining budget: ${remainingCalories} kcal, ${remainingProtein}g protein, ${remainingCarbs}g carbs, ${remainingFat}g fat. Be specific — no round numbers, account for sauces and cooking methods.`;
     }
 
     const response = await anthropic.messages.create({

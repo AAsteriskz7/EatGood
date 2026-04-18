@@ -99,7 +99,7 @@
   --spacing-list:      0.75rem;   /* 12px — vertical stacked-item gap        */
   --spacing-cols:      1rem;      /* 16px — horizontal grid / side-by-side   */
   --spacing-section:   2rem;      /* 32px — major section separation         */
-  --spacing-nav-clear: 6rem;      /* 96px — clearance above floating nav bar */
+  --spacing-nav-clear: 6.5rem;    /* 104px — clearance above floating capsule nav */
 
   /* Shadows  */
   --shadow-card:        0 8px 30px rgba(0, 0, 0, 0.04);
@@ -177,6 +177,18 @@
     --sidebar-accent-foreground:  oklch(0.20 0.01 50);
     --sidebar-border:             oklch(0.93 0.02 50);
     --sidebar-ring:               oklch(0.68 0.18 45);
+
+    /* App background gradient stops (very subtle depth layer) */
+    --background-gradient-start: oklch(0.993 0.016 58);
+    --background-gradient-end:   oklch(0.974 0.02 38);
+
+    /* Shared by body and any full-bleed surface (pages must not use solid bg-background) */
+    --app-background-image: linear-gradient(
+      160deg,
+      var(--background-gradient-start) 0%,
+      var(--background) 46%,
+      var(--background-gradient-end) 100%
+    );
   }
 
   /* Dark mode mappings for the bottom sheet/overlay look */
@@ -220,6 +232,17 @@
     --sidebar-accent-foreground:  oklch(0.985 0.01 50);
     --sidebar-border:             oklch(1 0 0 / 10%);
     --sidebar-ring:               oklch(0.68 0.18 45);
+
+    /* Dark mode gradient stops maintain same hue family with low contrast */
+    --background-gradient-start: oklch(0.24 0.018 52);
+    --background-gradient-end:   oklch(0.175 0.012 38);
+
+    --app-background-image: linear-gradient(
+      160deg,
+      var(--background-gradient-start) 0%,
+      var(--background) 46%,
+      var(--background-gradient-end) 100%
+    );
   }
 
   *,
@@ -236,6 +259,8 @@
 
   body {
     background-color: var(--background);
+    background-image: var(--app-background-image);
+    background-attachment: fixed;
     color: var(--foreground);
     font-family: var(--font-dm), sans-serif;
     overscroll-behavior: none;
@@ -310,12 +335,25 @@
 @utility gap-cols    { gap: var(--spacing-cols); }     /* 16px side-by-side  */
 @utility gap-section { gap: var(--spacing-section); }  /* 32px section break */
 
+/* Full-bleed app canvas: use on route shells instead of bg-background (which hides the gradient). */
+@utility bg-app {
+  background-color: var(--background);
+  background-image: var(--app-background-image);
+  background-attachment: fixed;
+}
+
 @utility scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Keep Leaflet map clipped to rounded parent surface */
+.map-surface {
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 /* Reduced-motion fallback  */

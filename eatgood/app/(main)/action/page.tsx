@@ -1,41 +1,122 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { useUserProfile } from '@/context/UserProfileContext';
+import type { FoodItem, RecipeResult } from '@/context/UserProfileContext';
 import {
-  Camera,
-  SwitchCamera,
-  X,
-  ChefHat,
-  UtensilsCrossed,
-  Check,
-  AlertTriangle,
-  Minus,
-  Loader2,
-  ImagePlus,
+  Camera, SwitchCamera, X, ChefHat, UtensilsCrossed,
+  Check, AlertTriangle, Minus, Loader2, ImagePlus,
+  Bookmark, BookmarkCheck, ArrowRight, RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { FoodItem, RecipeResult } from '@/context/UserProfileContext';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ScanMode = 'menu' | 'fridge';
 
+interface SwapSuggestion {
+  name: string;
+  reason: string;
+  estimatedCalories: number;
+  estimatedProtein: number;
+}
+
 const RECO_STYLE: Record<string, { bg: string; text: string; border: string; icon: React.ElementType }> = {
-  good:  { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20', icon: Check },
+  good:  { bg: 'bg-primary/10',          text: 'text-primary',          border: 'border-primary/20',          icon: Check },
   okay:  { bg: 'bg-feedback-warning/10', text: 'text-feedback-warning', border: 'border-feedback-warning/20', icon: Minus },
-  avoid: { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/20', icon: AlertTriangle },
+  avoid: { bg: 'bg-destructive/10',      text: 'text-destructive',      border: 'border-destructive/20',      icon: AlertTriangle },
 };
+
+const GOAL_LABELS: Record<string, string> = {
+  lose_weight:  'Fat Loss',
+  gain_muscle:  'Muscle Gain',
+  maintain:     'Maintain',
+  endurance:    'Endurance',
+  heart_health: 'Heart Health',
+  low_sodium:   'Low Sodium',
+};
+
+// ─── Snack Swap Card ──────────────────────────────────────────────────────────
+
+function SnackSwapCard({
+  foodName, userProfile,
+  onDismiss, onLogSwap,
+}: {
+  foodName: string;
+  userProfile: Record<string, unknown>;
+  onDismiss: () => void;
+  onLogSwap: (swap: SwapSuggestion) => void;
+}) {
+  const [swaps, setSwaps] = useState<SwapSuggestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/snack-swap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ foodName, userProfile }),
+    })
+      .then((r) => r.json())
+      .then((data) => { setSwaps(data.swaps ?? []); setLoading(false); })
+      .catch(() => { setError('Could not load alternatives'); setLoading(false); });
+  }, [foodName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Card className="border-primary/20 animate-fade-up">
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="type-label text-foreground font-semibold">Healthier alternatives</p>
+          <button
+            onClick={onDismiss}
+            aria-label="Dismiss swap suggestions"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          >
+            <X size={14} strokeWidth={2} className="text-muted-foreground" />
+          </button>
+        </div>
+        {loading && (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 size={14} className="animate-spin text-primary" />
+            <span className="type-caption text-muted-foreground">Finding alternatives...</span>
+          </div>
+        )}
+        {error && <p className="type-caption text-destructive">{error}</p>}
+        {swaps.map((swap, i) => (
+          <div key={i} className="border-t border-border pt-3 mt-3 first:border-t-0 first:pt-0 first:mt-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <p className="type-label text-foreground">{swap.name}</p>
+                <p className="type-caption text-muted-foreground mt-0.5">{swap.reason}</p>
+                <p className="type-micro text-muted-foreground mt-1">{swap.estimatedCalories} kcal · {swap.estimatedProtein}g P</p>
+              </div>
+              <button
+                onClick={() => onLogSwap(swap)}
+                aria-label={`Log ${swap.name} instead`}
+                className="flex items-center gap-1 type-micro text-primary font-semibold flex-shrink-0 active:opacity-70 transition-opacity"
+              >
+                Log <ArrowRight size={12} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {!loading && swaps.length === 0 && !error && (
+          <p className="type-caption text-muted-foreground">No alternatives found.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ActionPage() {
   const {
-    profile,
-    remainingCalories,
-    remainingProtein,
-    remainingCarbs,
-    remainingFat,
-    addMeal,
+    profile, remainingCalories, remainingProtein, remainingCarbs, remainingFat,
+    addMeal, savedMeals, saveMeal, unsaveMeal,
   } = useUserProfile();
 
   const webcamRef = useRef<Webcam>(null);
@@ -48,15 +129,12 @@ export default function ActionPage() {
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [recipe, setRecipe] = useState<RecipeResult | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
+  const [swapTarget, setSwapTarget] = useState<string | null>(null);
 
   const capture = useCallback(() => {
-    if (!webcamRef.current) return;
-    const imageSrc = webcamRef.current.getScreenshot();
-    if (imageSrc) {
-      setCapturedImage(imageSrc);
-      analyzeImage(imageSrc);
-    }
-  }, []);
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) { setCapturedImage(imageSrc); analyzeImage(imageSrc); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,7 +146,7 @@ export default function ActionPage() {
       analyzeImage(dataUrl);
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const analyzeImage = async (imageBase64: string) => {
     setLoading(true);
@@ -76,6 +154,7 @@ export default function ActionPage() {
     setFoodItems([]);
     setRecipe(null);
     setLoggedItems(new Set());
+    setSwapTarget(null);
 
     try {
       const res = await fetch('/api/analyze', {
@@ -100,18 +179,12 @@ export default function ActionPage() {
           },
         }),
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Analysis failed (${res.status})`);
-      }
-
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Analysis failed (${res.status})`);
       const data = await res.json();
       if (data.items) setFoodItems(data.items);
       if (data.recipe) setRecipe(data.recipe);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to analyze image';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Failed to analyze image');
     } finally {
       setLoading(false);
     }
@@ -123,9 +196,19 @@ export default function ActionPage() {
     setRecipe(null);
     setError(null);
     setLoggedItems(new Set());
+    setSwapTarget(null);
   };
 
   const logFoodItem = (item: FoodItem) => {
+    if (item.recommendation === 'avoid') {
+      // Show swap suggestions before logging
+      setSwapTarget(item.name === swapTarget ? null : item.name);
+      return;
+    }
+    doLogItem(item);
+  };
+
+  const doLogItem = (item: FoodItem) => {
     addMeal({
       description: item.name,
       calories: item.estimatedCalories,
@@ -136,6 +219,25 @@ export default function ActionPage() {
       aiAdvice: item.reason,
     });
     setLoggedItems((prev) => new Set([...prev, item.name]));
+    setSwapTarget(null);
+  };
+
+  const logSwapInstead = (item: FoodItem, swap: SwapSuggestion) => {
+    addMeal({
+      description: swap.name,
+      calories: swap.estimatedCalories,
+      protein: swap.estimatedProtein,
+      carbs: 0,
+      fat: 0,
+      recommendation: 'good',
+      aiAdvice: swap.reason,
+    });
+    setLoggedItems((prev) => new Set([...prev, item.name]));
+    setSwapTarget(null);
+  };
+
+  const logAnywayIgnoringSwap = (item: FoodItem) => {
+    doLogItem(item);
   };
 
   const logRecipe = () => {
@@ -152,26 +254,58 @@ export default function ActionPage() {
     setLoggedItems((prev) => new Set([...prev, recipe.name]));
   };
 
+  const isItemSaved = (name: string) => savedMeals.some((m) => m.name === name);
+
+  const toggleSaveMeal = (item: FoodItem) => {
+    if (isItemSaved(item.name)) {
+      const existing = savedMeals.find((m) => m.name === item.name);
+      if (existing) unsaveMeal(existing.id);
+    } else {
+      saveMeal({
+        name: item.name,
+        calories: item.estimatedCalories,
+        protein: item.estimatedProtein,
+        carbs: item.estimatedCarbs,
+        fat: item.estimatedFat,
+        recommendation: item.recommendation,
+      });
+    }
+  };
+
   const hasResults = foodItems.length > 0 || recipe !== null;
+  const goalLabel = GOAL_LABELS[profile.fitnessGoal] ?? profile.fitnessGoal;
+
+  const swapUserProfile = {
+    fitnessGoal: profile.fitnessGoal,
+    dietPreference: profile.dietPreference,
+    allergies: profile.allergies,
+    remainingCalories,
+  };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-app flex flex-col">
       {/* ── Header ── */}
       <header className="bg-card border-b border-border px-screen pt-14 pb-4">
-        <h1 className="type-heading text-foreground">Scan</h1>
-        <p className="type-caption text-muted-foreground mt-1">
-          Point your camera at a menu, food, or open fridge
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="type-heading text-foreground">Scan</h1>
+            <p className="type-caption text-muted-foreground mt-0.5">
+              Point your camera at a menu, food, or open fridge
+            </p>
+          </div>
+          <Badge variant="secondary" className="type-micro uppercase tracking-wider flex-shrink-0">
+            {goalLabel}
+          </Badge>
+        </div>
 
         {/* Mode toggle */}
         <div className="flex gap-2 mt-3">
           <button
             onClick={() => { setMode('menu'); resetScan(); }}
+            aria-pressed={mode === 'menu'}
             className={[
               'flex items-center gap-2 px-4 py-2 rounded-lg type-label transition-colors',
-              mode === 'menu'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-border',
+              mode === 'menu' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-border',
             ].join(' ')}
           >
             <UtensilsCrossed size={16} strokeWidth={2} />
@@ -179,11 +313,10 @@ export default function ActionPage() {
           </button>
           <button
             onClick={() => { setMode('fridge'); resetScan(); }}
+            aria-pressed={mode === 'fridge'}
             className={[
               'flex items-center gap-2 px-4 py-2 rounded-lg type-label transition-colors',
-              mode === 'fridge'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-border',
+              mode === 'fridge' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-border',
             ].join(' ')}
           >
             <ChefHat size={16} strokeWidth={2} />
@@ -203,33 +336,28 @@ export default function ActionPage() {
                   ref={webcamRef}
                   audio={false}
                   screenshotFormat="image/jpeg"
-                  videoConstraints={{
-                    facingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 960 },
-                  }}
+                  videoConstraints={{ facingMode, width: { ideal: 1280 }, height: { ideal: 960 } }}
                   className="w-full h-full object-cover"
                   onUserMediaError={() => setError('Camera access denied. You can upload an image instead.')}
                 />
-
-                {/* Camera controls overlay */}
                 <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-6">
                   <button
                     onClick={() => fileInputRef.current?.click()}
+                    aria-label="Upload image from gallery"
                     className="w-12 h-12 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
                   >
                     <ImagePlus size={20} strokeWidth={1.75} className="text-foreground" />
                   </button>
-
                   <button
                     onClick={capture}
+                    aria-label="Take photo"
                     className="w-16 h-16 rounded-full bg-primary shadow-action flex items-center justify-center active:scale-90 transition-transform ring-4 ring-card/50"
                   >
                     <Camera size={28} strokeWidth={2} className="text-primary-foreground" />
                   </button>
-
                   <button
                     onClick={() => setFacingMode((f) => f === 'user' ? 'environment' : 'user')}
+                    aria-label="Flip camera"
                     className="w-12 h-12 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
                   >
                     <SwitchCamera size={20} strokeWidth={1.75} className="text-foreground" />
@@ -245,9 +373,9 @@ export default function ActionPage() {
               capture="environment"
               onChange={handleFileUpload}
               className="hidden"
+              aria-label="Upload food image"
             />
 
-            {/* Remaining budget reminder */}
             <div className="flex items-center justify-between px-1">
               <span className="type-micro text-muted-foreground">Remaining today:</span>
               <span className="type-micro text-foreground font-semibold">
@@ -265,6 +393,7 @@ export default function ActionPage() {
               <img src={capturedImage} alt="Captured food" className="w-full aspect-[4/3] object-cover" />
               <button
                 onClick={resetScan}
+                aria-label="Clear scan and start over"
                 className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
               >
                 <X size={20} strokeWidth={2} className="text-foreground" />
@@ -284,14 +413,12 @@ export default function ActionPage() {
               <Card className="border-destructive/20">
                 <CardContent className="pt-4">
                   <p className="type-body text-destructive">{error}</p>
-                  <Button onClick={resetScan} variant="default" className="mt-3 w-full">
-                    Try Again
-                  </Button>
+                  <Button onClick={resetScan} variant="default" className="mt-3 w-full">Try Again</Button>
                 </CardContent>
               </Card>
             )}
 
-            {/* Food items results */}
+            {/* Food items */}
             {foodItems.length > 0 && (
               <div className="flex flex-col gap-list">
                 <h2 className="type-subheading text-foreground">
@@ -301,54 +428,89 @@ export default function ActionPage() {
                   const style = RECO_STYLE[item.recommendation];
                   const Icon = style.icon;
                   const isLogged = loggedItems.has(item.name);
+                  const isSwapOpen = swapTarget === item.name;
+                  const saved = isItemSaved(item.name);
 
                   return (
-                    <Card
-                      key={i}
-                      className={['animate-fade-up border', style.border].join(' ')}
-                      style={{ animationDelay: `${i * 60}ms` }}
-                    >
-                      <CardContent className="pt-4">
-                        <div className="flex items-start gap-3">
-                          <div className={['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', style.bg].join(' ')}>
-                            <Icon size={16} strokeWidth={2} className={style.text} />
+                    <div key={i} className="flex flex-col gap-2">
+                      <Card
+                        className={['animate-fade-up border', style.border].join(' ')}
+                        style={{ animationDelay: `${i * 60}ms` }}
+                      >
+                        <CardContent className="pt-4">
+                          <div className="flex items-start gap-3">
+                            <div className={['w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', style.bg].join(' ')}>
+                              <Icon size={16} strokeWidth={2} className={style.text} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="type-label text-foreground font-semibold">{item.name}</p>
+                                  <Badge variant="secondary" className={['type-micro uppercase', style.text].join(' ')}>
+                                    {item.recommendation}
+                                  </Badge>
+                                </div>
+                                <button
+                                  onClick={() => toggleSaveMeal(item)}
+                                  aria-label={saved ? `Remove ${item.name} from saved meals` : `Save ${item.name}`}
+                                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+                                >
+                                  {saved
+                                    ? <BookmarkCheck size={16} strokeWidth={2} className="text-primary" />
+                                    : <Bookmark size={16} strokeWidth={1.75} className="text-muted-foreground" />
+                                  }
+                                </button>
+                              </div>
+                              <p className="type-caption text-muted-foreground mt-1">{item.reason}</p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <span className="type-micro text-muted-foreground">{item.estimatedCalories} kcal</span>
+                                <span className="type-micro text-muted-foreground">{item.estimatedProtein}g P</span>
+                                <span className="type-micro text-muted-foreground">{item.estimatedCarbs}g C</span>
+                                <span className="type-micro text-muted-foreground">{item.estimatedFat}g F</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="type-label text-foreground font-semibold">{item.name}</p>
-                              <Badge
-                                variant="secondary"
-                                className={['type-micro uppercase', style.text].join(' ')}
+
+                          {!isLogged ? (
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                onClick={() => logFoodItem(item)}
+                                variant={item.recommendation === 'avoid' ? 'secondary' : 'default'}
+                                size="sm"
+                                className="flex-1"
                               >
-                                {item.recommendation}
-                              </Badge>
+                                {item.recommendation === 'avoid' ? 'See alternatives' : 'Log this meal'}
+                              </Button>
+                              {item.recommendation === 'avoid' && (
+                                <Button
+                                  onClick={() => logAnywayIgnoringSwap(item)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-muted-foreground"
+                                >
+                                  Log anyway
+                                </Button>
+                              )}
                             </div>
-                            <p className="type-caption text-muted-foreground mt-1">{item.reason}</p>
-                            <div className="flex items-center gap-3 mt-2">
-                              <span className="type-micro text-muted-foreground">{item.estimatedCalories} kcal</span>
-                              <span className="type-micro text-muted-foreground">{item.estimatedProtein}g P</span>
-                              <span className="type-micro text-muted-foreground">{item.estimatedCarbs}g C</span>
-                              <span className="type-micro text-muted-foreground">{item.estimatedFat}g F</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-2 mt-3 py-2 rounded-lg bg-primary/10">
+                              <Check size={14} strokeWidth={2} className="text-primary" />
+                              <span className="type-micro text-primary font-semibold">Logged</span>
                             </div>
-                          </div>
-                        </div>
-                        {!isLogged ? (
-                          <Button
-                            onClick={() => logFoodItem(item)}
-                            variant="default"
-                            size="sm"
-                            className="w-full mt-3"
-                          >
-                            Log This Meal
-                          </Button>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2 mt-3 py-2 rounded-lg bg-primary/10">
-                            <Check size={14} strokeWidth={2} className="text-primary" />
-                            <span className="type-micro text-primary font-semibold">Logged</span>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Snack swap card appears inline below avoid items */}
+                      {isSwapOpen && !isLogged && (
+                        <SnackSwapCard
+                          foodName={item.name}
+                          userProfile={swapUserProfile}
+                          onDismiss={() => setSwapTarget(null)}
+                          onLogSwap={(swap) => logSwapInstead(item, swap)}
+                        />
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -381,7 +543,7 @@ export default function ActionPage() {
                     <ul className="flex flex-col gap-1 mb-4">
                       {recipe.ingredients.map((ing, i) => (
                         <li key={i} className="type-caption text-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1.5 w-1 h-1 rounded-full bg-primary flex-shrink-0" />
+                          <span className="w-1 h-1 rounded-full bg-primary flex-shrink-0 mt-2" />
                           {ing}
                         </li>
                       ))}
@@ -398,9 +560,7 @@ export default function ActionPage() {
                     </ol>
 
                     {!loggedItems.has(recipe.name) ? (
-                      <Button onClick={logRecipe} variant="default" className="w-full">
-                        Log This Recipe
-                      </Button>
+                      <Button onClick={logRecipe} variant="default" className="w-full">Log this recipe</Button>
                     ) : (
                       <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/10">
                         <Check size={14} strokeWidth={2} className="text-primary" />
@@ -412,10 +572,10 @@ export default function ActionPage() {
               </div>
             )}
 
-            {/* Scan again button */}
             {hasResults && (
               <Button onClick={resetScan} variant="secondary" className="w-full">
-                Scan Again
+                <RefreshCw size={16} strokeWidth={2} className="mr-2" />
+                Scan again
               </Button>
             )}
           </section>
