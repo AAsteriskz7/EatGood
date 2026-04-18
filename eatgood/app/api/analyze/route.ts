@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 
 export async function POST(req: NextRequest) {
   try {
@@ -109,7 +110,7 @@ Rules:
     }
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: ANTHROPIC_MODEL,
       max_tokens: 2048,
       system: systemPrompt,
       messages: [
