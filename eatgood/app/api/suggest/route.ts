@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = anthropicApiKey ? new Anthropic({ apiKey: anthropicApiKey }) : null;
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+// Haiku is ~4× faster than Sonnet for these small structured JSON tasks
+const SUGGEST_MODEL = 'claude-haiku-3-5';
 
 interface SuggestResponse {
   nearbyOptions: Array<{
@@ -196,13 +197,13 @@ Rules:
     }
 
     const response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 2048,
+      model: SUGGEST_MODEL,
+      max_tokens: 700,
       system: systemPrompt,
       messages: [
         {
           role: 'user',
-          content: `Return 4 nearby options, 2 micro-interventions, meal timing, and a proactive alert for location (${lat}, ${lon}) and time ${currentTime || new Date().toISOString()}.`,
+          content: `Suggest for (${lat},${lon}).`,
         },
       ],
     });

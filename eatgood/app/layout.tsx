@@ -42,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${dmSans.variable}`}>
+    <html
+      lang="en"
+      className={`${jakarta.variable} ${dmSans.variable} app-canvas`}
+    >
       <body>
         <UserProfileProvider>{children}</UserProfileProvider>
       </body>

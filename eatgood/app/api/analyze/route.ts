@@ -83,14 +83,19 @@ MACRO ESTIMATION RULES:
 4. For packaged/branded items you can read on the label, use those values exactly.
 5. Sauces, dressings, and oils add significant hidden calories — always include them if visible (e.g. dressing on a salad adds 150–300 kcal).
 6. Mixed dishes (stir-fry, curry, sandwich): break into components mentally, estimate each, then sum.
-7. Cooking method matters: fried adds ~50–150 kcal per serving vs grilled; creamy sauces add 100–200 kcal.`.trim();
+7. Cooking method matters: fried adds ~50–150 kcal per serving vs grilled; creamy sauces add 100–200 kcal.
+
+OUTPUT BREVITY (required):
+- Every "reason" field: max 160 characters, max 2 short sentences. Lead with the verdict (fits / tight / heavy), then one concrete macro or budget fact. No preamble, no "As a nutritionist", no repeated profile stats.
+- In TRIAGE mode: append one compact travel tip in the same "reason" string (still under 160 chars), e.g. final clause starting with "Tip:".
+- Recipe "steps": each step one sentence under 100 characters; imperative voice.`.trim();
 
     if (mode === 'fridge') {
       systemPrompt = `You are AnchorFuel operating as ${agentMode} — a precision AI nutritionist for traveling professionals. Your macro estimates must be grounded in real food science, not guesses.
 
 ${isTriageMode
-  ? `MODE: TRIAGE. The user is in a rush (${triageReason}). Prioritize 3-minute prep, non-bloating ingredients, grab-and-go ideas. Keep reasons punchy and direct.`
-  : 'MODE: CULINARY. The user has time. Provide a detailed recipe with cooking guidance, flavor notes, and accurate macro breakdowns.'}
+  ? `MODE: TRIAGE. The user is in a rush (${triageReason}). Prioritize 3-minute prep, non-bloating ingredients, grab-and-go ideas.`
+  : 'MODE: CULINARY. The user has time. Recipe steps must stay concise (see OUTPUT BREVITY); prioritize clarity over essay-length narrative.'}
 
 USER PROFILE:
 - Diet: ${dietLabel}
@@ -147,8 +152,8 @@ confidence levels: "high" = packaged label readable or very common food with wel
       systemPrompt = `You are AnchorFuel operating as ${agentMode} — a precision AI nutritionist for traveling professionals. Your macro estimates must be grounded in real food science, not guesses.
 
 ${isTriageMode
-  ? `MODE: TRIAGE. The user is busy (${triageReason}). Recommendations must be rapid, low-bloat, high-energy. Add a "Travel Hack" tip to each reason (e.g. "avoid high-sodium options before a flight to prevent bloating").`
-  : 'MODE: CULINARY. The user is settled. Provide detailed nutritional context, cooking method impact, and lifestyle coaching in each reason.'}
+  ? `MODE: TRIAGE. The user is busy (${triageReason}). Recommendations must be rapid and low-bloat; fold one short travel tip into "reason" per OUTPUT BREVITY (no second paragraph).`
+  : 'MODE: CULINARY. The user is settled. Reasons stay concise per OUTPUT BREVITY — one verdict plus one concrete fact, not a coaching essay.'}
 
 USER PROFILE:
 - Diet: ${dietLabel}
@@ -184,7 +189,7 @@ Respond in STRICT JSON (no markdown, no code fences):
   ]
 }`;
 
-      userPrompt = `Analyze this image in ${agentMode} mode. Use visual portion anchors and USDA reference values to estimate macros for every visible food item. Rate each against my remaining budget: ${remainingCalories} kcal, ${remainingProtein}g protein, ${remainingCarbs}g carbs, ${remainingFat}g fat. Be specific — no round numbers, account for sauces and cooking methods.`;
+      userPrompt = `Analyze this image in ${agentMode} mode. Use visual portion anchors and USDA reference values to estimate macros for every visible food item. Rate each against my remaining budget: ${remainingCalories} kcal, ${remainingProtein}g protein, ${remainingCarbs}g carbs, ${remainingFat}g fat. Be specific in the numbers — avoid fake round totals, account for sauces and cooking methods. Keep every "reason" within OUTPUT BREVITY limits.`;
     }
 
     const response = await anthropic.messages.create({

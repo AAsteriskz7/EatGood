@@ -101,8 +101,8 @@
   --spacing-section:   2rem;      /* 32px — major section separation         */
   --spacing-nav-clear: 6.5rem;    /* 104px — clearance above floating capsule nav */
 
-  /* Shadows  */
-  --shadow-card:        0 8px 30px rgba(0, 0, 0, 0.04);
+  /* Shadows (slightly layered for a calmer, modern lift)  */
+  --shadow-card:        0 1px 0 oklch(0 0 0 / 0.04), 0 8px 28px oklch(0 0 0 / 0.065);
   --shadow-card-hover:  0 12px 40px rgba(232, 139, 56, 0.08);
   --shadow-nav:         0 -4px 20px rgba(0, 0, 0, 0.03);
   --shadow-action:      0 8px 24px rgba(232, 139, 56, 0.25);
@@ -178,17 +178,23 @@
     --sidebar-border:             oklch(0.93 0.02 50);
     --sidebar-ring:               oklch(0.68 0.18 45);
 
-    /* App background gradient stops (very subtle depth layer) */
-    --background-gradient-start: oklch(0.993 0.016 58);
-    --background-gradient-end:   oklch(0.974 0.02 38);
+    /* App canvas: warm wash + directional gradient (tokens only) */
+    --background-gradient-start: oklch(0.996 0.022 58);
+    --background-gradient-end:   oklch(0.968 0.03 40);
+    --background-atmosphere:     oklch(0.995 0.035 50 / 0.55);
 
-    /* Shared by body and any full-bleed surface (pages must not use solid bg-background) */
-    --app-background-image: linear-gradient(
-      160deg,
-      var(--background-gradient-start) 0%,
-      var(--background) 46%,
-      var(--background-gradient-end) 100%
-    );
+    --app-background-layers:
+      radial-gradient(ellipse 125% 70% at 50% -18%, var(--background-atmosphere) 0%, transparent 55%),
+      linear-gradient(
+        168deg,
+        var(--background-gradient-start) 0%,
+        var(--background) 42%,
+        var(--background-gradient-end) 100%
+      );
+
+    /* Card elevation tier: frosted glass (used by [data-slot="card"] — Rule 03) */
+    --card-surface-mix: 72%;
+    --card-backdrop-blur: 14px;
   }
 
   /* Dark mode mappings for the bottom sheet/overlay look */
@@ -233,16 +239,21 @@
     --sidebar-border:             oklch(1 0 0 / 10%);
     --sidebar-ring:               oklch(0.68 0.18 45);
 
-    /* Dark mode gradient stops maintain same hue family with low contrast */
-    --background-gradient-start: oklch(0.24 0.018 52);
-    --background-gradient-end:   oklch(0.175 0.012 38);
+    --background-gradient-start: oklch(0.26 0.024 52);
+    --background-gradient-end:   oklch(0.165 0.016 38);
+    --background-atmosphere:     oklch(0.55 0.12 45 / 0.12);
 
-    --app-background-image: linear-gradient(
-      160deg,
-      var(--background-gradient-start) 0%,
-      var(--background) 46%,
-      var(--background-gradient-end) 100%
-    );
+    --app-background-layers:
+      radial-gradient(ellipse 125% 70% at 50% -18%, var(--background-atmosphere) 0%, transparent 55%),
+      linear-gradient(
+        168deg,
+        var(--background-gradient-start) 0%,
+        var(--background) 42%,
+        var(--background-gradient-end) 100%
+      );
+
+    --card-surface-mix: 66%;
+    --card-backdrop-blur: 16px;
   }
 
   *,
@@ -257,10 +268,21 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  body {
+  /*
+   * Canvas lives on <html class="app-canvas"> so it cannot be covered by route shells.
+   * Body stays transparent so the gradient always shows through.
+   */
+  html.app-canvas {
+    min-height: 100%;
     background-color: var(--background);
-    background-image: var(--app-background-image);
-    background-attachment: fixed;
+    background-image: var(--app-background-layers);
+    background-attachment: fixed, fixed;
+    background-repeat: no-repeat;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: transparent;
     color: var(--foreground);
     font-family: var(--font-dm), sans-serif;
     overscroll-behavior: none;
@@ -335,18 +357,34 @@
 @utility gap-cols    { gap: var(--spacing-cols); }     /* 16px side-by-side  */
 @utility gap-section { gap: var(--spacing-section); }  /* 32px section break */
 
-/* Full-bleed app canvas: use on route shells instead of bg-background (which hides the gradient). */
-@utility bg-app {
-  background-color: var(--background);
-  background-image: var(--app-background-image);
-  background-attachment: fixed;
-}
-
 @utility scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* ── Card surfaces (shadcn Card) — translucency + backdrop blur for depth ─────
+   bg-card is not used on the Card root so the canvas shows through slightly.
+────────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  [data-slot='card'] {
+    background-color: color-mix(
+      in oklch,
+      var(--card) var(--card-surface-mix, 72%),
+      transparent
+    );
+    backdrop-filter: blur(var(--card-backdrop-blur, 14px));
+    -webkit-backdrop-filter: blur(var(--card-backdrop-blur, 14px));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot='card'] {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background-color: var(--card);
+    }
   }
 }
 

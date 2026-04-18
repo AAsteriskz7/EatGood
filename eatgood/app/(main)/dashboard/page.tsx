@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { calcBMI, getBMICategory } from '@/context/UserProfileContext';
 import type {
@@ -311,6 +311,29 @@ export default function DashboardPage() {
 
   const displayName = profile.name || 'there';
 
+  // Instant rule-based meal timing — shown immediately, no AI wait
+  const instantMealTiming = useMemo((): MealTimingAdvice => {
+    const hour = new Date().getHours();
+    const isLowBudget = remainingCalories < 450;
+    const isHighProtein = remainingProtein > 35;
+    if (remainingCalories <= 0) {
+      return { nextMealIn: 'Budget met', mealType: 'Budget met for today — focus on hydration.', reason: 'You\'ve hit your calorie target for today.' };
+    }
+    if (hour < 7) {
+      return { nextMealIn: '60–90 min', mealType: isLowBudget ? 'snack' : 'light', reason: `Early morning — a ${isHighProtein ? 'protein-forward' : 'light'} breakfast will set your energy for the day.` };
+    } else if (hour < 11) {
+      return { nextMealIn: '30–60 min', mealType: 'moderate', reason: `Morning window — fuel up to protect ${remainingCalories} kcal remaining.` };
+    } else if (hour < 14) {
+      return { nextMealIn: 'Now', mealType: isLowBudget ? 'light' : 'moderate', reason: `Lunch time. ${isLowBudget ? `Keep it light — only ${remainingCalories} kcal left.` : `Use ~${Math.round(remainingCalories * 0.4)} kcal here.`}` };
+    } else if (hour < 17) {
+      return { nextMealIn: '45–90 min', mealType: 'snack', reason: `Afternoon — a protein snack will carry you to dinner within your ${remainingCalories} kcal budget.` };
+    } else if (hour < 20) {
+      return { nextMealIn: 'Now', mealType: isLowBudget ? 'light' : 'moderate', reason: `Dinner window. ${isLowBudget ? `${remainingCalories} kcal left — keep it lean.` : 'Good time for your main evening meal.'}` };
+    } else {
+      return { nextMealIn: '60–90 min', mealType: 'snack', reason: `Late evening — ${remainingCalories > 300 ? 'a small protein snack fits your budget' : 'close out with hydration only'}.` };
+    }
+  }, [remainingCalories, remainingProtein]);
+
   const fetchSuggestions = useCallback(async () => {
     if (!location) return;
     setSuggestionsLoading(true);
@@ -371,9 +394,9 @@ export default function DashboardPage() {
   // Onboarding gate — redirect to onboarding wizard
   if (!profile.setupComplete) {
     return (
-      <div className="min-h-screen bg-app flex flex-col items-center justify-center px-screen gap-section">
+      <div className="min-h-screen flex flex-col items-center justify-center px-screen gap-section">
         <div className="text-center">
-          <h1 className="type-display text-foreground">Welcome to AnchorFuel</h1>
+          <h1 className="type-display text-foreground mt-[30px]">Welcome to AnchorFuel</h1>
           <p className="type-body text-muted-foreground mt-3 max-w-xs mx-auto">
             Set up your health profile to get personalized meal recommendations.
           </p>
@@ -395,7 +418,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-app">
+    <div className="min-h-screen">
       {/* ── Header ── */}
       <header className="bg-card border-b border-border px-screen pt-14 pb-4">
         <div className="flex items-start justify-between">
@@ -574,26 +597,38 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        {/* ── Meal Timing ── */}
-        {suggestions?.mealTimingAdvice && (
-          <section>
-            <h2 className="type-subheading text-foreground mb-3">Meal Timing</h2>
-            <Card>
-              <CardContent className="pt-4 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                  <Clock size={16} strokeWidth={2} className="text-primary" />
-                </div>
-                <div>
-                  <p className="type-label text-foreground">
-                    Next meal in {suggestions.mealTimingAdvice.nextMealIn}
-                    <span className="type-micro text-muted-foreground ml-2">({suggestions.mealTimingAdvice.mealType})</span>
-                  </p>
-                  <p className="type-caption text-muted-foreground mt-1">{suggestions.mealTimingAdvice.reason}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
+        {/* ── Meal Timing — shown instantly from local rules; AI result swaps in when ready ── */}
+        {profile.setupComplete && (() => {
+          const timing = suggestions?.mealTimingAdvice ?? instantMealTiming;
+          const isAI = !!suggestions?.mealTimingAdvice;
+          return (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="type-subheading text-foreground">Meal Timing</h2>
+                {!isAI && suggestionsLoading && (
+                  <span className="flex items-center gap-1 type-micro text-muted-foreground">
+                    <Loader2 size={10} strokeWidth={2} className="animate-spin" />
+                    AI refining…
+                  </span>
+                )}
+              </div>
+              <Card>
+                <CardContent className="pt-4 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                    <Clock size={16} strokeWidth={2} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="type-label text-foreground">
+                      Next meal in {timing.nextMealIn}
+                      <span className="type-micro text-muted-foreground ml-2">({timing.mealType})</span>
+                    </p>
+                    <p className="type-caption text-muted-foreground mt-1">{timing.reason}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          );
+        })()}
 
         {/* ── Nearby Options (quick view) ── */}
         <section>

@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { useUserProfile } from '@/context/UserProfileContext';
+import {
+  ALEX_ACTIVITY, ALEX_DEMO_FORM, ALEX_DIET, ALEX_GOAL, ALEX_SEX,
+} from '@/lib/alex-demo-data';
 import { calcTDEE, calcMacros, calcBMI, getBMICategory } from '@/context/UserProfileContext';
 import type {
   DietPreference, FitnessGoal, ActivityLevel, Sex, ScheduleEvent,
@@ -85,6 +88,7 @@ export default function ProfilePage() {
     profile, updateProfile, todayLog, weekHistory, calorieProgress,
     addEvent, removeEvent, todayEvents,
     savedRestaurants, unsaveRestaurant, savedMeals, unsaveMeal,
+    loadAlexDemo,
   } = useUserProfile();
 
   // Personal & physical
@@ -158,42 +162,22 @@ export default function ProfilePage() {
   };
 
   const loadDemoProfile = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const nowHour = new Date().getHours();
-    const soonTime = `${String(nowHour + 1).padStart(2, '0')}:00`;
-    const laterTime = `${String(Math.min(nowHour + 3, 23)).padStart(2, '0')}:30`;
-    const eveningTime = `${String(Math.min(nowHour + 6, 23)).padStart(2, '0')}:00`;
+    loadAlexDemo();
 
-    const demoEvents: Omit<ScheduleEvent, 'id'>[] = [
-      { title: 'Red-eye to LAX', time: soonTime, type: 'flight', date: today },
-      { title: 'Morning Standup Broadcast', time: laterTime, type: 'broadcast', date: today },
-      { title: 'Editorial Team Sync', time: eveningTime, type: 'meeting', date: today },
-      { title: 'Hotel Gym Session', time: '20:00', type: 'workout', date: today },
-    ];
-    profile.schedule.forEach((e) => removeEvent(e.id));
-    demoEvents.forEach((e) => addEvent(e));
+    setName(ALEX_DEMO_FORM.name);
+    setAge(ALEX_DEMO_FORM.age);
+    setSex(ALEX_SEX);
+    setHeightCm(ALEX_DEMO_FORM.heightCm);
+    setWeightKg(ALEX_DEMO_FORM.weightKg);
+    setActivityLevel(ALEX_ACTIVITY);
+    setCalorieTarget(ALEX_DEMO_FORM.calorieTarget);
+    setProteinTarget(ALEX_DEMO_FORM.proteinTarget);
+    setCarbTarget(ALEX_DEMO_FORM.carbTarget);
+    setFatTarget(ALEX_DEMO_FORM.fatTarget);
+    setDiet(ALEX_DIET);
+    setGoal(ALEX_GOAL);
+    setAllergyInput(ALEX_DEMO_FORM.allergyInput);
 
-    setName('Alex Rivera');
-    setAge('32');
-    setSex('male');
-    setHeightCm('180');
-    setWeightKg('82');
-    setActivityLevel('active');
-    setCalorieTarget('2400');
-    setProteinTarget('190');
-    setCarbTarget('240');
-    setFatTarget('75');
-    setDiet('any');
-    setGoal('gain_muscle');
-    setAllergyInput('shellfish');
-
-    updateProfile({
-      name: 'Alex Rivera',
-      age: 32, sex: 'male', heightCm: 180, weightKg: 82, activityLevel: 'active',
-      calorieTarget: 2400, proteinTarget: 190, carbTarget: 240, fatTarget: 75,
-      dietPreference: 'any', fitnessGoal: 'gain_muscle', allergies: ['shellfish'],
-      setupComplete: true,
-    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -212,7 +196,7 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="min-h-screen bg-app">
+    <div className="min-h-screen">
       {/* ── Hero ── */}
       <div className="bg-card border-b border-border px-screen pt-14 pb-6">
         <div className="flex items-center gap-4">

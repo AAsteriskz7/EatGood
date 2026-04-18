@@ -69,11 +69,14 @@ export interface FoodItem {
   estimatedProtein: number;
   estimatedCarbs: number;
   estimatedFat: number;
+  servingSize?: string;
+  confidence?: string;
 }
 
 export interface RecipeResult {
   name: string;
   cookTime: string;
+  servingSize?: string;
   ingredients: string[];
   steps: string[];
   estimatedCalories: number;
@@ -260,6 +263,8 @@ interface UserProfileContextValue {
   unsaveRestaurant: (id: string) => void;
   saveMeal: (m: Omit<SavedMeal, 'id' | 'savedAt'>) => void;
   unsaveMeal: (id: string) => void;
+  /** Hackathon demo: Alex Rivera profile + 7-day meals, weight, saved spots & meals */
+  loadAlexDemo: () => void;
 }
 
 const UserProfileContext = createContext<UserProfileContextValue | null>(null);
@@ -294,12 +299,30 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfile(loadFromStorage('anchorfuel_profile', DEFAULT_PROFILE));
-    setMealsByDate(loadFromStorage('anchorfuel_meals', {}));
-    setWeightLog(loadFromStorage('anchorfuel_weight', []));
-    setSavedRestaurants(loadFromStorage('anchorfuel_saved_restaurants', []));
-    setSavedMeals(loadFromStorage('anchorfuel_saved_meals', []));
-    setHydrated(true);
+    try {
+      const prof = loadFromStorage('anchorfuel_profile', DEFAULT_PROFILE);
+      setProfile(
+        prof && typeof prof === 'object' && !Array.isArray(prof)
+          ? { ...DEFAULT_PROFILE, ...(prof as UserProfile) }
+          : DEFAULT_PROFILE,
+      );
+
+      const meals = loadFromStorage('anchorfuel_meals', {});
+      setMealsByDate(
+        meals && typeof meals === 'object' && !Array.isArray(meals) ? (meals as Record<string, MealEntry[]>) : {},
+      );
+
+      const wl = loadFromStorage('anchorfuel_weight', []);
+      setWeightLog(Array.isArray(wl) ? wl : []);
+
+      const sr = loadFromStorage('anchorfuel_saved_restaurants', []);
+      setSavedRestaurants(Array.isArray(sr) ? sr : []);
+
+      const sm = loadFromStorage('anchorfuel_saved_meals', []);
+      setSavedMeals(Array.isArray(sm) ? sm : []);
+    } finally {
+      setHydrated(true);
+    }
   }, []);
 
   useEffect(() => { if (hydrated) saveToStorage('anchorfuel_profile', profile); }, [profile, hydrated]);
@@ -309,10 +332,26 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (hydrated) saveToStorage('anchorfuel_saved_meals', savedMeals); }, [savedMeals, hydrated]);
 
   const requestLocation = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    // Geolocation is gated to secure contexts (https, localhost, 127.0.0.1). Plain http://<LAN-IP> is blocked.
+    if (!window.isSecureContext) {
+      setLocationError(
+        'Location only works on HTTPS or http://localhost — not on a plain http:// network address. Use localhost, tunnel (ngrok), or deploy with HTTPS.'
+      );
+      return;
+    }
     if (!navigator.geolocation) { setLocationError('Geolocation not supported'); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => { setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); setLocationError(null); },
-      (err) => { setLocationError(err.message); },
+      (err) => {
+        const code = (err as GeolocationPositionError).code;
+        const msg =
+          code === 1 ? 'Location permission denied. Allow location for this site in browser settings.' :
+          code === 2 ? 'Position unavailable. Check that location services are on.' :
+          code === 3 ? 'Location request timed out. Try again or check your connection.' :
+          err.message;
+        setLocationError(msg);
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, []);
@@ -384,10 +423,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const remainingCarbs    = Math.max(0, profile.carbTarget - totalCarbs);
   const remainingFat      = Math.max(0, profile.fatTarget - totalFat);
 
-  const calorieProgress = Math.min((totalCalories / profile.calorieTarget) * 100, 100);
-  const proteinProgress = Math.min((totalProtein / profile.proteinTarget) * 100, 100);
-  const carbProgress    = Math.min((totalCarbs / profile.carbTarget) * 100, 100);
-  const fatProgress     = Math.min((totalFat / profile.fatTarget) * 100, 100);
+  const calorieProgress = Math.min((totalCalories / Math.max(profile.calorieTarget, 1)) * 100, 100);
+  const proteinProgress = Math.min((totalProtein / Math.max(profile.proteinTarget, 1)) * 100, 100);
+  const carbProgress    = Math.min((totalCarbs / Math.max(profile.carbTarget, 1)) * 100, 100);
+  const fatProgress     = Math.min((totalFat / Math.max(profile.fatTarget, 1)) * 100, 100);
 
   const logWeight = useCallback((kg: number) => {
     const entry: WeightEntry = { date: getTodayKey(), weightKg: kg };
@@ -417,7 +456,44 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     setSavedMeals((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  if (!hydrated) return null;
+  const loadAlexDemo = useCallback(() => {
+    void import('@/lib/alex-demo-data')
+      .then(
+        ({
+          buildAlexMealsByDate,
+          buildAlexSchedule,
+          buildAlexSavedMeals,
+          buildAlexSavedRestaurants,
+          buildAlexWeightLog,
+        }) => {
+          const today = new Date().toISOString().slice(0, 10);
+          const nowHour = new Date().getHours();
+          setProfile({
+            name: 'Alex Rivera',
+            age: 32,
+            sex: 'male',
+            heightCm: 180,
+            weightKg: 82,
+            activityLevel: 'active',
+            calorieTarget: 2400,
+            proteinTarget: 190,
+            carbTarget: 240,
+            fatTarget: 75,
+            targetsAutoCalculated: true,
+            dietPreference: 'any',
+            fitnessGoal: 'gain_muscle',
+            allergies: ['shellfish'],
+            schedule: buildAlexSchedule(today, nowHour),
+            setupComplete: true,
+          });
+          setMealsByDate(buildAlexMealsByDate() as Record<string, MealEntry[]>);
+          setWeightLog(buildAlexWeightLog() as WeightEntry[]);
+          setSavedRestaurants(buildAlexSavedRestaurants() as SavedRestaurant[]);
+          setSavedMeals(buildAlexSavedMeals() as SavedMeal[]);
+        },
+      )
+      .catch((err) => console.error('loadAlexDemo failed', err));
+  }, []);
 
   return (
     <UserProfileContext.Provider
@@ -432,6 +508,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         weightLog, logWeight,
         savedRestaurants, savedMeals,
         saveRestaurant, unsaveRestaurant, saveMeal, unsaveMeal,
+        loadAlexDemo,
       }}
     >
       {children}

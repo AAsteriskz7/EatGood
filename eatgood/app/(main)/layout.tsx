@@ -57,7 +57,7 @@ function BottomNav() {
       }}
       aria-label="Main navigation"
     >
-      <ul className="flex items-center gap-3 bg-card rounded-full px-3 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.13),0_2px_8px_rgba(0,0,0,0.06)]">
+      <ul className="flex items-center gap-3 rounded-full border border-border/60 bg-card/88 px-3 py-3 shadow-card ring-1 ring-foreground/8 backdrop-blur-md supports-backdrop-filter:bg-card/78">
         {NAV_ITEMS.map(({ href, icon: Icon, label, isAction }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
 
@@ -93,7 +93,7 @@ function BottomNav() {
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen min-h-dvh bg-app">
+    <div className="relative min-h-screen min-h-dvh">
       <main className="pb-nav">{children}</main>
       <BottomNav />
     </div>

@@ -39,6 +39,69 @@ const GOAL_LABELS: Record<string, string> = {
   low_sodium:   'Low Sodium',
 };
 
+function formatKcal(n: number) {
+  if (!Number.isFinite(n)) return '—';
+  return Math.round(n).toLocaleString();
+}
+
+function formatMacroGrams(n: number) {
+  if (!Number.isFinite(n)) return '—';
+  const x = Math.round(n * 10) / 10;
+  return Number.isInteger(x) ? String(x) : x.toFixed(1);
+}
+
+/** Compact tabular macro row for scan results */
+function MacroStrip({
+  calories,
+  protein,
+  carbs,
+  fat,
+  compact,
+  variant = 'full',
+  className,
+}: {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  compact?: boolean;
+  variant?: 'full' | 'caloriesProtein';
+  className?: string;
+}) {
+  const cells =
+    variant === 'caloriesProtein'
+      ? [
+          { label: 'Cal', value: formatKcal(calories), unit: 'kcal' },
+          { label: 'Protein', value: formatMacroGrams(protein), unit: 'g' },
+        ]
+      : [
+          { label: 'Cal', value: formatKcal(calories), unit: 'kcal' },
+          { label: 'P', value: formatMacroGrams(protein), unit: 'g' },
+          { label: 'C', value: formatMacroGrams(carbs), unit: 'g' },
+          { label: 'F', value: formatMacroGrams(fat), unit: 'g' },
+        ];
+  const gridCols = variant === 'caloriesProtein' ? 'grid-cols-2' : 'grid-cols-4';
+  return (
+    <div
+      className={[
+        'grid rounded-lg border border-border bg-muted/30',
+        gridCols,
+        compact ? 'gap-0.5 p-2' : 'gap-1 p-3',
+      ].join(' ')}
+    >
+      {cells.map((c) => (
+        <div key={c.label} className="text-center min-w-0">
+          <p className="type-micro text-muted-foreground leading-none mb-1">{c.label}</p>
+          <p className={['tabular-nums text-foreground font-semibold leading-tight', compact ? 'type-micro' : 'type-label'].join(' ')}>
+            {c.value}
+            {c.unit ? <span className="type-micro text-muted-foreground font-medium ml-0.5">{c.unit}</span> : null}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Snack Swap Card ──────────────────────────────────────────────────────────
 
 function SnackSwapCard({
@@ -90,8 +153,17 @@ function SnackSwapCard({
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <p className="type-label text-foreground">{swap.name}</p>
-                <p className="type-caption text-muted-foreground mt-0.5">{swap.reason}</p>
-                <p className="type-micro text-muted-foreground mt-1">{swap.estimatedCalories} kcal · {swap.estimatedProtein}g P</p>
+                <p className="type-caption text-muted-foreground mt-0.5 line-clamp-2">{swap.reason}</p>
+                <div className="mt-2 max-w-[200px]">
+                  <MacroStrip
+                    calories={swap.estimatedCalories}
+                    protein={swap.estimatedProtein}
+                    carbs={0}
+                    fat={0}
+                    compact
+                    variant="caloriesProtein"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => onLogSwap(swap)}
@@ -283,7 +355,7 @@ export default function ActionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-app flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* ── Header ── */}
       <header className="bg-card border-b border-border px-screen pt-14 pb-4">
         <div className="flex items-center justify-between">
@@ -378,8 +450,8 @@ export default function ActionPage() {
 
             <div className="flex items-center justify-between px-1">
               <span className="type-micro text-muted-foreground">Remaining today:</span>
-              <span className="type-micro text-foreground font-semibold">
-                {Math.round(remainingCalories)} kcal · {Math.round(remainingProtein)}g P · {Math.round(remainingCarbs)}g C · {Math.round(remainingFat)}g F
+              <span className="type-micro text-foreground font-semibold tabular-nums">
+                {formatKcal(remainingCalories)} kcal · {formatMacroGrams(remainingProtein)}g P · {formatMacroGrams(remainingCarbs)}g C · {formatMacroGrams(remainingFat)}g F
               </span>
             </div>
           </section>
@@ -449,7 +521,13 @@ export default function ActionPage() {
                                   <Badge variant="secondary" className={['type-micro uppercase', style.text].join(' ')}>
                                     {item.recommendation}
                                   </Badge>
+                                  {item.confidence === 'low' && (
+                                    <Badge variant="secondary" className="type-micro text-muted-foreground">~approx</Badge>
+                                  )}
                                 </div>
+                                {item.servingSize && (
+                                  <p className="type-micro text-muted-foreground mt-0.5">{item.servingSize}</p>
+                                )}
                                 <button
                                   onClick={() => toggleSaveMeal(item)}
                                   aria-label={saved ? `Remove ${item.name} from saved meals` : `Save ${item.name}`}
@@ -461,13 +539,14 @@ export default function ActionPage() {
                                   }
                                 </button>
                               </div>
-                              <p className="type-caption text-muted-foreground mt-1">{item.reason}</p>
-                              <div className="flex items-center gap-3 mt-2">
-                                <span className="type-micro text-muted-foreground">{item.estimatedCalories} kcal</span>
-                                <span className="type-micro text-muted-foreground">{item.estimatedProtein}g P</span>
-                                <span className="type-micro text-muted-foreground">{item.estimatedCarbs}g C</span>
-                                <span className="type-micro text-muted-foreground">{item.estimatedFat}g F</span>
-                              </div>
+                              <p className="type-caption text-muted-foreground mt-1 line-clamp-3">{item.reason}</p>
+                              <MacroStrip
+                                className="mt-2"
+                                calories={item.estimatedCalories}
+                                protein={item.estimatedProtein}
+                                carbs={item.estimatedCarbs}
+                                fat={item.estimatedFat}
+                              />
                             </div>
                           </div>
 
@@ -528,16 +607,19 @@ export default function ActionPage() {
                       </div>
                       <div>
                         <p className="type-label text-foreground font-semibold">{recipe.name}</p>
-                        <p className="type-micro text-muted-foreground">{recipe.cookTime}</p>
+                        <p className="type-micro text-muted-foreground">
+                          {[recipe.cookTime, recipe.servingSize].filter(Boolean).join(' · ')}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="type-micro text-muted-foreground">{recipe.estimatedCalories} kcal</span>
-                      <span className="type-micro text-muted-foreground">{recipe.estimatedProtein}g P</span>
-                      <span className="type-micro text-muted-foreground">{recipe.estimatedCarbs}g C</span>
-                      <span className="type-micro text-muted-foreground">{recipe.estimatedFat}g F</span>
-                    </div>
+                    <MacroStrip
+                      className="mb-3 mt-1"
+                      calories={recipe.estimatedCalories}
+                      protein={recipe.estimatedProtein}
+                      carbs={recipe.estimatedCarbs}
+                      fat={recipe.estimatedFat}
+                    />
 
                     <h3 className="type-micro text-muted-foreground uppercase tracking-wider mb-2">Ingredients</h3>
                     <ul className="flex flex-col gap-1 mb-4">

@@ -143,9 +143,9 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-app flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       {/* Progress bar */}
-      <div className="w-full h-1 bg-muted">
+      <div className="w-full shrink-0 h-1 bg-muted">
         <div
           className="h-full bg-primary transition-all duration-500"
           style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
@@ -153,7 +153,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Step indicators */}
-      <div className="flex items-center justify-center gap-2 px-screen pt-8 pb-2">
+      <div className="flex shrink-0 items-center justify-center gap-2 px-screen pb-3 pt-[max(1.5rem,env(safe-area-inset-top,0px))]">
         {STEPS.map((s, i) => {
           const Icon = s.icon;
           const done = i < step;
@@ -177,13 +177,19 @@ export default function OnboardingPage() {
         })}
       </div>
 
-      <div className="flex-1 flex flex-col px-screen py-6 gap-section overflow-y-auto">
+      <div
+        className={[
+          'flex-1 min-h-0 overflow-y-auto flex flex-col',
+          step === 0 ? 'justify-center' : 'justify-start',
+        ].join(' ')}
+      >
+        <div className="px-screen py-6 gap-section flex flex-col w-full max-w-lg mx-auto">
 
         {/* ── Step 0: Personal ── */}
         {step === 0 && (
           <div className="flex flex-col gap-list animate-fade-up">
             <div>
-              <h1 className="type-display text-foreground">Welcome to AnchorFuel</h1>
+              <h1 className="type-display text-foreground mt-[30px]">Welcome to AnchorFuel</h1>
               <p className="type-body text-muted-foreground mt-2">Let&apos;s set up your health profile. This takes about 60 seconds.</p>
             </div>
             <Card>
@@ -407,10 +413,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        </div>
       </div>
 
       {/* Navigation footer */}
-      <div className="px-screen pb-8 pt-4 flex gap-3 border-t border-border bg-app" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="shrink-0 border-t border-border bg-card/85 px-screen pt-4 pb-8 flex gap-3 backdrop-blur-md supports-backdrop-filter:bg-card/75" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}>
         {step > 0 && (
           <Button
             onClick={() => setStep((s) => s - 1)}

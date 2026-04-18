@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = anthropicApiKey ? new Anthropic({ apiKey: anthropicApiKey }) : null;
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+// Haiku is ~4× faster for the simple rating/tagging task on these small JSON payloads
+const PLACES_MODEL = 'claude-haiku-3-5';
 
 interface OverpassElement {
   id: number;
@@ -109,6 +110,62 @@ function buildFallbackRatings(
   });
 }
 
+/** First `{ ... }` with correct brace/bracket depth (ignores braces inside JSON strings). */
+function extractFirstBalancedJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (c === '\\') {
+        escaped = true;
+      } else if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === '{' || c === '[') depth += 1;
+    else if (c === '}' || c === ']') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/** Trim + remove trailing commas AI often emits before ] or }. */
+function tryRepairJsonFragment(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^\uFEFF/, '')
+    .replace(/,\s*([}\]])/g, '$1');
+}
+
+function parsePlacesResponse(rawText: string): { places: RatedPlace[] } | null {
+  const balanced = extractFirstBalancedJsonObject(rawText);
+  const candidates = balanced ? [balanced] : [];
+
+  for (const c of candidates) {
+    const repaired = tryRepairJsonFragment(c);
+    try {
+      const parsed = JSON.parse(repaired) as { places?: RatedPlace[] };
+      if (Array.isArray(parsed.places) && parsed.places.length > 0) return parsed as { places: RatedPlace[] };
+    } catch {
+      /* next candidate */
+    }
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -118,12 +175,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Location required' }, { status: 400 });
     }
 
-    // ── Overpass query with manual AbortController timeout ──────────────────
-    const query = `[out:json][timeout:20];node["amenity"~"restaurant|cafe|fast_food|food_court"](around:${radius},${latitude},${longitude});out body;`;
+    // ── Overpass query — short 5s timeout so we never block the user for long ──
+    const safeRadius = Math.min(Number(radius) || 800, 800);
+    const query = `[out:json][timeout:8];node["amenity"~"restaurant|cafe|fast_food|food_court"](around:${safeRadius},${latitude},${longitude});out body;`;
     let overpassPlaces: NearbyPlace[] = [];
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 14000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
       const overpassRes = await fetch(
@@ -144,7 +202,7 @@ export async function POST(req: NextRequest) {
             amenity: el.tags!.amenity || 'restaurant',
             cuisine: el.tags!.cuisine,
           }))
-          .slice(0, 25);
+          .slice(0, 10); // 10 is plenty for the AI prompt — keeps tokens low
       }
     } catch {
       clearTimeout(timeoutId);
@@ -177,31 +235,15 @@ export async function POST(req: NextRequest) {
         `(within 0.005 degrees). Use unique, realistic restaurant names for this area.`;
     }
 
-    const systemPrompt = `You are AnchorFuel, a precision AI nutritionist rating nearby food options for a traveling professional.
-
-User profile:
-- Diet: ${dietLabel}
-- Goal: ${goalLabel}
-- Remaining budget today: ${remainingCalories} kcal, ${remainingProtein}g protein remaining
-- Allergies: ${allergies}
-
+    const systemPrompt = `You are DietMaxx. Rate nearby food for a traveling professional. JSON only, no markdown.
+User: diet=${dietLabel}, goal=${goalLabel}, ${remainingCalories} kcal left, ${remainingProtein}g protein left, allergies=${allergies}.
 ${placesContext}
-
-For each place return:
-- name: exact name as provided (do not modify)${hasRealPlaces ? '' : ', or the generated name'}
-- lat / lon: ${hasRealPlaces ? 'use 0.0 — the server will fill in real coordinates' : 'a realistic coordinate near the user (within 0.005° of the given lat/lon)'}
-- amenity: "restaurant", "cafe", or "fast_food"
-- recommendation: "good" | "okay" | "avoid" based on whether it fits the user's macros and diet
-- reason: one specific sentence referencing their remaining ${remainingCalories} kcal and goal
-- suggestedItem: the single best menu item to order given their goal
-- tags: relevant tags from ["vegan-friendly","vegetarian","high-protein","low-calorie","gluten-free","keto-friendly","halal","kosher"]
-
-Respond in STRICT JSON only (no markdown, no code fences):
-{"places":[{"id":1,"name":"Name","lat":${hasRealPlaces ? '0.0' : latitude},"lon":${hasRealPlaces ? '0.0' : longitude},"amenity":"restaurant","recommendation":"good","reason":"…","suggestedItem":"…","tags":[]}]}`;
+Return: {"places":[{"id":1,"name":"exact name","lat":${hasRealPlaces ? '0.0' : latitude},"lon":${hasRealPlaces ? '0.0' : longitude},"amenity":"restaurant|cafe|fast_food","recommendation":"good|okay|avoid","reason":"one sentence citing remaining kcal","suggestedItem":"specific item","tags":["high-protein","low-calorie","vegan-friendly","vegetarian","gluten-free","keto-friendly","halal","kosher"]}]}
+${hasRealPlaces ? 'Names must be verbatim. Set lat=0.0, lon=0.0 — server fills real coords.' : `Realistic coords within 0.005° of ${latitude},${longitude}.`}`;
 
     const userMsg = hasRealPlaces
-      ? `Rate these ${overpassPlaces.length} restaurants for my health goals. Keep their names exactly as given.`
-      : `Suggest 5 food options near latitude ${latitude}, longitude ${longitude} and rate them for my health goals.`;
+      ? `Rate these ${overpassPlaces.length} restaurants. Keep names verbatim.`
+      : `Suggest 5 food options near ${latitude},${longitude}.`;
 
     const fallbackPlaces = buildFallbackRatings(overpassPlaces, latitude, longitude, userProfile);
 
@@ -215,8 +257,8 @@ Respond in STRICT JSON only (no markdown, no code fences):
 
     try {
       const response = await anthropic.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 2048,
+        model: PLACES_MODEL,
+        max_tokens: 900,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMsg }],
       });
@@ -231,23 +273,13 @@ Respond in STRICT JSON only (no markdown, no code fences):
         });
       }
 
-      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      const rated = parsePlacesResponse(textContent.text);
+      if (!rated) {
         return NextResponse.json({
           places: fallbackPlaces,
           degraded: true,
           source: hasRealPlaces ? 'overpass-fallback' : 'synthetic-fallback',
           warning: 'Could not parse AI response',
-        });
-      }
-
-      const rated = JSON.parse(jsonMatch[0]) as { places: RatedPlace[] };
-      if (!Array.isArray(rated.places) || rated.places.length === 0) {
-        return NextResponse.json({
-          places: fallbackPlaces,
-          degraded: true,
-          source: hasRealPlaces ? 'overpass-fallback' : 'synthetic-fallback',
-          warning: 'AI returned no places',
         });
       }
 

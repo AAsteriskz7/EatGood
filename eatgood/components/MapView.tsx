@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 interface RatedPlace {
@@ -16,10 +16,10 @@ interface RatedPlace {
   tags: string[];
 }
 
-const COLORS: Record<string, string> = {
-  good:  '#e8893b',
-  okay:  '#c49a44',
-  avoid: '#d94f4f',
+const COLORS: Record<string, { fill: string; ring: string }> = {
+  good:  { fill: '#e8893b', ring: '#fff' },
+  okay:  { fill: '#c49a44', ring: '#fff' },
+  avoid: { fill: '#d94f4f', ring: '#fff' },
 };
 
 function RecenterMap({ center }: { center: [number, number] }) {
@@ -39,7 +39,7 @@ interface MapViewProps {
 
 export default function MapView({ center, places, selected, onSelect }: MapViewProps) {
   return (
-    <div className="h-full w-full rounded-[var(--radius-card)] overflow-hidden">
+    <div className="h-full w-full rounded-[var(--radius-card)] overflow-hidden isolate">
       <MapContainer
         center={center}
         zoom={15}
@@ -54,35 +54,36 @@ export default function MapView({ center, places, selected, onSelect }: MapViewP
         />
         <RecenterMap center={center} />
 
-        {/* User location dot */}
+        {/* User location dot — inner fill + white ring */}
         <CircleMarker
           center={center}
-          radius={7}
-          pathOptions={{ color: '#fff', fillColor: '#e8893b', fillOpacity: 1, weight: 2 }}
+          radius={8}
+          pathOptions={{ color: '#fff', fillColor: '#e8893b', fillOpacity: 1, weight: 2.5 }}
         />
 
         {places.map((place, i) => {
           if (!place.lat || !place.lon) return null;
-          const color = COLORS[place.recommendation] ?? COLORS.good;
+          const pal = COLORS[place.recommendation] ?? COLORS.good;
           const isSelected = selected?.name === place.name;
           return (
             <CircleMarker
               key={place.id || i}
               center={[place.lat, place.lon]}
-              radius={isSelected ? 10 : 7}
+              radius={isSelected ? 13 : 9}
               pathOptions={{
-                color: isSelected ? '#fff' : color,
-                fillColor: color,
-                fillOpacity: 0.9,
-                weight: isSelected ? 2.5 : 1.5,
+                color: isSelected ? pal.fill : 'rgba(0,0,0,0.18)',
+                fillColor: pal.fill,
+                fillOpacity: isSelected ? 1 : 0.88,
+                weight: isSelected ? 3 : 1.5,
               }}
-              eventHandlers={{ click: () => onSelect(isSelected ? null : place) }}
-            >
-              <Popup>
-                <strong className="text-sm">{place.name}</strong>
-                {place.suggestedItem && <p className="text-xs mt-1">Order: {place.suggestedItem}</p>}
-              </Popup>
-            </CircleMarker>
+              eventHandlers={{
+                click: (e) => {
+                  // Stop map click-through so the overlay doesn't immediately dismiss
+                  e.originalEvent.stopPropagation();
+                  onSelect(isSelected ? null : place);
+                },
+              }}
+            />
           );
         })}
       </MapContainer>
