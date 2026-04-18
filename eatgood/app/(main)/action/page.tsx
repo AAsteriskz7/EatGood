@@ -91,7 +91,12 @@ export default function ActionPage() {
             proteinTarget: profile.proteinTarget,
             remainingCalories,
             remainingProtein,
+            remainingCarbs,
+            remainingFat,
             allergies: profile.allergies,
+            schedule: profile.schedule
+              .filter((e) => e.date === new Date().toISOString().slice(0, 10))
+              .map((e) => `${e.title} at ${e.time} (${e.type})`),
           },
         }),
       });

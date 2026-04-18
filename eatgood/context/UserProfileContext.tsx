@@ -7,15 +7,24 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 export type DietPreference = 'any' | 'vegetarian' | 'vegan' | 'keto' | 'paleo' | 'halal' | 'kosher';
 export type FitnessGoal = 'maintain' | 'lose_weight' | 'gain_muscle' | 'endurance';
 
+export interface ScheduleEvent {
+  id: string;
+  title: string;
+  time: string;       // ISO string or readable time
+  type: 'flight' | 'broadcast' | 'meeting' | 'workout' | 'other';
+  date: string;        // YYYY-MM-DD
+}
+
 export interface UserProfile {
   name: string;
   calorieTarget: number;
-  proteinTarget: number;  // grams
-  carbTarget: number;     // grams
-  fatTarget: number;      // grams
+  proteinTarget: number;
+  carbTarget: number;
+  fatTarget: number;
   dietPreference: DietPreference;
   fitnessGoal: FitnessGoal;
   allergies: string[];
+  schedule: ScheduleEvent[];
   setupComplete: boolean;
 }
 
@@ -33,19 +42,12 @@ export interface MealEntry {
 }
 
 export interface DailyLog {
-  date: string; // YYYY-MM-DD
+  date: string;
   meals: MealEntry[];
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
-}
-
-export interface ScanResult {
-  loading: boolean;
-  items: FoodItem[];
-  recipe?: RecipeResult;
-  error?: string;
 }
 
 export interface FoodItem {
@@ -69,6 +71,36 @@ export interface RecipeResult {
   estimatedFat: number;
 }
 
+export interface NearbyOption {
+  venue: string;
+  distance: string;
+  recommendation: string;
+  reason: string;
+  estimatedCalories: number;
+  estimatedProtein: number;
+  type: 'good' | 'okay' | 'avoid';
+}
+
+export interface MicroIntervention {
+  title: string;
+  duration: string;
+  description: string;
+  type: 'movement' | 'breathing' | 'hydration' | 'rest';
+}
+
+export interface MealTimingAdvice {
+  nextMealIn: string;
+  mealType: string;
+  reason: string;
+}
+
+export interface ProactiveSuggestions {
+  nearbyOptions: NearbyOption[];
+  microInterventions: MicroIntervention[];
+  mealTimingAdvice: MealTimingAdvice | null;
+  proactiveAlert: string;
+}
+
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -80,6 +112,7 @@ const DEFAULT_PROFILE: UserProfile = {
   dietPreference: 'any',
   fitnessGoal: 'maintain',
   allergies: [],
+  schedule: [],
   setupComplete: false,
 };
 
@@ -104,6 +137,14 @@ interface UserProfileContextValue {
   proteinProgress: number;
   carbProgress: number;
   fatProgress: number;
+  // Schedule
+  addEvent: (event: Omit<ScheduleEvent, 'id'>) => void;
+  removeEvent: (id: string) => void;
+  todayEvents: ScheduleEvent[];
+  // Location
+  location: { latitude: number; longitude: number } | null;
+  locationError: string | null;
+  requestLocation: () => void;
 }
 
 const UserProfileContext = createContext<UserProfileContextValue | null>(null);
@@ -129,6 +170,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [mealsByDate, setMealsByDate] = useState<Record<string, MealEntry[]>>({});
   const [hydrated, setHydrated] = useState(false);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -147,6 +190,29 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     saveToStorage('anchorfuel_meals', mealsByDate);
   }, [mealsByDate, hydrated]);
+
+  // Request geolocation on mount
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation not supported');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setLocationError(null);
+      },
+      (err) => {
+        setLocationError(err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
+  // Auto-request location on mount
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
     setProfile((prev) => ({ ...prev, ...updates }));
@@ -189,6 +255,29 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Schedule management
+  const addEvent = useCallback((event: Omit<ScheduleEvent, 'id'>) => {
+    const newEvent: ScheduleEvent = {
+      ...event,
+      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    setProfile((prev) => ({
+      ...prev,
+      schedule: [...prev.schedule, newEvent],
+    }));
+  }, []);
+
+  const removeEvent = useCallback((id: string) => {
+    setProfile((prev) => ({
+      ...prev,
+      schedule: prev.schedule.filter((e) => e.id !== id),
+    }));
+  }, []);
+
+  const todayEvents = profile.schedule
+    .filter((e) => e.date === todayKey)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
   // Build last 7 days history
   const weekHistory: DailyLog[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -217,7 +306,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const fatProgress     = Math.min((totalFat / profile.fatTarget) * 100, 100);
 
   if (!hydrated) {
-    return null; // Don't render until hydrated to prevent flash
+    return null;
   }
 
   return (
@@ -237,6 +326,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         proteinProgress,
         carbProgress,
         fatProgress,
+        addEvent,
+        removeEvent,
+        todayEvents,
+        location,
+        locationError,
+        requestLocation,
       }}
     >
       {children}
