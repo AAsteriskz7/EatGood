@@ -1,8 +1,227 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* Tailwind v4 Theme 
+   Colors are defined as CSS custom properties in :root / .dark below.
+   Here we map them into Tailwind's color utility namespace (--color-*).
+ */
+@theme inline {
+  /* Surfaces & text (shadcn semantic names)  */
+  --color-background:         var(--background);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Brand / Primary  */
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  /* Secondary / Muted / Accent  */
+  --color-secondary:            var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+
+  /* Feedback  */
+  --color-destructive:          var(--destructive);
+  --color-destructive-foreground: oklch(1 0 0);
+
+  /* Borders, Inputs, Ring  */
+  --color-border:  var(--border);
+  --color-input:   var(--input);
+  --color-ring:    var(--ring);
+
+  /* Charts  */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar  */
+  --color-sidebar:                   var(--sidebar);
+  --color-sidebar-foreground:        var(--sidebar-foreground);
+  --color-sidebar-primary:           var(--sidebar-primary);
+  --color-sidebar-primary-foreground:var(--sidebar-primary-foreground);
+  --color-sidebar-accent:            var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:            var(--sidebar-border);
+  --color-sidebar-ring:              var(--sidebar-ring);
+
+  /* Semantic alias tokens (backward-compat with old class names)  */
+  --color-brand:              var(--primary);
+  --color-brand-light:        var(--secondary);
+  --color-brand-muted:        var(--muted);
+  --color-brand-subtle:       var(--secondary);
+  --color-surface-base:       var(--background);
+  --color-surface-elevated:   var(--card);
+  --color-surface-muted:      var(--muted);
+  --color-surface-strong:     var(--border);
+  --color-content-primary:    var(--foreground);
+  --color-content-secondary:  var(--muted-foreground);
+  --color-content-tertiary:   var(--muted-foreground);
+  --color-content-inverse:    var(--primary-foreground);
+  --color-feedback-error:     var(--destructive);
+  --color-feedback-success:   var(--primary);
+  --color-feedback-warning:   oklch(0.75 0.183 55);
+  --color-feedback-info:      oklch(0.623 0.214 259);
+
+  /* Typography (Kept identical to original)  */
+  --font-display: var(--font-jakarta), sans-serif;
+  --font-body:    var(--font-dm), sans-serif;
+  --font-sans:    var(--font-dm), sans-serif;
+
+  /* ── Border Radius System (Rule 01) ──────────────────────────────
+     Intent-named. No component ever hardcodes a radius value —
+     it references one of these tokens by name.
+  ─────────────────────────────────────────────────────────────── */
+  --radius-pill: 9999px;    /* buttons, chips, search bars, list-item rows */
+  --radius-hero: 2rem;      /* 32px — hero cards, bottom-sheet top edge    */
+  --radius-card: 1.5rem;    /* 24px — standard metric/content cards        */
+  --radius-chip: 9999px;    /* interactive tag pills (same tier as pill)   */
+  --radius-xl:   1.5rem;    /* 24px — overrides Tailwind default (shadcn Card uses rounded-xl) */
+  --radius-2xl:  2rem;      /* 32px — overrides Tailwind default           */
+  --radius-lg:   1rem;      /* 16px — shadcn compat / icon containers      */
+  --radius-md:   0.75rem;   /* 12px — compact interactive elements         */
+  --radius-sm:   0.5rem;    /* 8px  — tight chips, inline badges           */
+
+  /* ── Spacing System (Rule 02) ────────────────────────────────────
+     Single 4px base unit. Every token is a deliberate multiple.
+     Generates px-screen, pb-nav-clear, gap-list, gap-cols, gap-section etc.
+  ─────────────────────────────────────────────────────────────── */
+  --spacing-screen:    1.25rem;   /* 20px — horizontal screen-edge safe zone */
+  --spacing-inner:     1.25rem;   /* 20px — inner card content padding       */
+  --spacing-list:      0.75rem;   /* 12px — vertical stacked-item gap        */
+  --spacing-cols:      1rem;      /* 16px — horizontal grid / side-by-side   */
+  --spacing-section:   2rem;      /* 32px — major section separation         */
+  --spacing-nav-clear: 6rem;      /* 96px — clearance above floating nav bar */
+
+  /* Shadows  */
+  --shadow-card:        0 8px 30px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover:  0 12px 40px rgba(232, 139, 56, 0.08);
+  --shadow-nav:         0 -4px 20px rgba(0, 0, 0, 0.03);
+  --shadow-action:      0 8px 24px rgba(232, 139, 56, 0.25);
+
+  /* Motion  */
+  --animate-fade-up:  fade-up 0.3s ease-out both;
+  --animate-scale-in: scale-in 0.2s ease-out both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* Design Token Values 
+   All color decisions live here. Reverse-engineered from fitness app inspiration.
+ */
 @layer base {
+  :root {
+    /* Surfaces: Warm, tinted off-white backgrounds  */
+    --background:         oklch(0.985 0.01 50);
+    --foreground:         oklch(0.20 0.01 50);
+    --card:               oklch(1 0 0);
+    --card-foreground:    oklch(0.20 0.01 50);
+    --popover:            oklch(1 0 0);
+    --popover-foreground: oklch(0.20 0.01 50);
+
+    /* Brand / Primary: Active Amber / Orange  */
+    --primary:            oklch(0.68 0.18 45);
+    --primary-foreground: oklch(0.985 0.01 50);
+
+    /* Secondary: Soft peach/beige for inactive pills/cards  */
+    --secondary:            oklch(0.92 0.04 50);
+    --secondary-foreground: oklch(0.25 0.02 50);
+
+    /* Muted: Subtle background elements  */
+    --muted:            oklch(0.95 0.02 50);
+    --muted-foreground: oklch(0.55 0.02 50);
+
+    /* Accent: Hover states  */
+    --accent:            oklch(0.92 0.04 50);
+    --accent-foreground: oklch(0.20 0.01 50);
+
+    /* Destructive: Keep red but warm it slightly  */
+    --destructive: oklch(0.60 0.20 25);
+
+    /* Borders & Inputs: Very subtle warm borders  */
+    --border: oklch(0.93 0.02 50);
+    --input:  oklch(0.93 0.02 50);
+    --ring:   oklch(0.68 0.18 45);
+
+    /* Base radius — shadcn internals reference this */
+    --radius: 1rem;
+
+    /* Charts: Mapped to the burgundy/orange mix from screenshots  */
+    --chart-1: oklch(0.68 0.18 45);
+    --chart-2: oklch(0.45 0.18 350);
+    --chart-3: oklch(0.85 0.10 50);
+    --chart-4: oklch(0.35 0.05 250);
+    --chart-5: oklch(0.75 0.12 60);
+
+    /* Sidebar  */
+    --sidebar:                    oklch(0.985 0.01 50);
+    --sidebar-foreground:         oklch(0.20 0.01 50);
+    --sidebar-primary:            oklch(0.68 0.18 45);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent:             oklch(0.92 0.04 50);
+    --sidebar-accent-foreground:  oklch(0.20 0.01 50);
+    --sidebar-border:             oklch(0.93 0.02 50);
+    --sidebar-ring:               oklch(0.68 0.18 45);
+  }
+
+  /* Dark mode mappings for the bottom sheet/overlay look */
+  .dark {
+    --background:         oklch(0.20 0.01 50);
+    --foreground:         oklch(0.985 0.01 50);
+    --card:               oklch(0.25 0.01 50);
+    --card-foreground:    oklch(0.985 0.01 50);
+    --popover:            oklch(0.25 0.01 50);
+    --popover-foreground: oklch(0.985 0.01 50);
+
+    --primary:            oklch(0.68 0.18 45);
+    --primary-foreground: oklch(0.985 0.01 50);
+
+    --secondary:            oklch(0.30 0.01 50);
+    --secondary-foreground: oklch(0.90 0.02 50);
+
+    --muted:            oklch(0.28 0.01 50);
+    --muted-foreground: oklch(0.70 0.01 50);
+
+    --accent:            oklch(0.30 0.01 50);
+    --accent-foreground: oklch(0.985 0.01 50);
+
+    --destructive: oklch(0.65 0.20 25);
+
+    --border: oklch(1 0 0 / 10%);
+    --input:  oklch(1 0 0 / 15%);
+    --ring:   oklch(0.68 0.18 45);
+
+    --chart-1: oklch(0.68 0.18 45);
+    --chart-2: oklch(0.45 0.18 350);
+    --chart-3: oklch(0.85 0.10 50);
+    --chart-4: oklch(0.35 0.05 250);
+    --chart-5: oklch(0.75 0.12 60);
+
+    --sidebar:                    oklch(0.20 0.01 50);
+    --sidebar-foreground:         oklch(0.985 0.01 50);
+    --sidebar-primary:            oklch(0.68 0.18 45);
+    --sidebar-primary-foreground: oklch(0.20 0.01 50);
+    --sidebar-accent:             oklch(0.30 0.01 50);
+    --sidebar-accent-foreground:  oklch(0.985 0.01 50);
+    --sidebar-border:             oklch(1 0 0 / 10%);
+    --sidebar-ring:               oklch(0.68 0.18 45);
+  }
+
   *,
   *::before,
   *::after {
@@ -16,35 +235,96 @@
   }
 
   body {
-    @apply bg-surface-base font-body text-content-primary;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-dm), sans-serif;
     overscroll-behavior: none;
   }
 
-  /* Remove default focus outline and replace with accessible ring */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand ring-offset-2;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   }
 }
 
-@layer utilities {
-  .pb-nav {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
-  }
+/* Typographic Role Utilities  */
+@utility type-display {
+  font-size: 1.625rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+}
+@utility type-heading {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+}
+@utility type-subheading {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  font-family: var(--font-display);
+}
+@utility type-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+@utility type-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  font-family: var(--font-body);
+}
+@utility type-caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+@utility type-micro {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+  font-family: var(--font-body);
+}
 
-  .bottom-nav-height {
-    height: calc(4.5rem + env(safe-area-inset-bottom, 0px));
-  }
+/* ── Safe-area / nav clearance ──────────────────────────────────────────────
+   pb-nav uses --spacing-nav-clear token (6rem = 96px) so the last scroll
+   item is never hidden by the floating bottom bar.
+────────────────────────────────────────────────────────────────────────── */
+@utility pb-nav {
+  padding-bottom: calc(var(--spacing-nav-clear) + env(safe-area-inset-bottom, 0px));
+}
 
-  .padding-safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
+/* ── Semantic gap utilities (Rule 01 / Rule 02) ──────────────────────────────
+   Every layout gap traces to a named spacing token. Never use raw gap-3 etc.
+   in component code — use these semantic names instead.
+────────────────────────────────────────────────────────────────────────── */
+@utility gap-list    { gap: var(--spacing-list); }     /* 12px stacked items */
+@utility gap-cols    { gap: var(--spacing-cols); }     /* 16px side-by-side  */
+@utility gap-section { gap: var(--spacing-section); }  /* 32px section break */
 
-  /* Subtle scrollbar for iOS-feel */
-  .scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .scrollbar-none::-webkit-scrollbar {
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Reduced-motion fallback  */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

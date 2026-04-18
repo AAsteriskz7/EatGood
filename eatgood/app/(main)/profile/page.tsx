@@ -16,6 +16,11 @@ import {
   BookOpen,
   KeyRound,
 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -25,25 +30,9 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-const PLAN_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  Free: {
-    bg: 'bg-surface-muted',
-    text: 'text-content-secondary',
-    border: 'border-border',
-  },
-  Pro: {
-    bg: 'bg-brand-subtle',
-    text: 'text-brand',
-    border: 'border-brand-muted',
-  },
-  Team: {
-    bg: 'bg-blue-50',
-    text: 'text-blue-600',
-    border: 'border-blue-100',
-  },
-};
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Stat Pill ────────────────────────────────────────────────────────────────
+// Rule 06: all three stats use the same icon treatment — no competing accents.
+// Rule 04: value → type-heading, label → type-micro.
 
 function StatPill({
   label,
@@ -55,19 +44,20 @@ function StatPill({
   icon: React.ElementType;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center gap-1.5 py-4">
-      <div className="w-8 h-8 rounded-full bg-brand-subtle flex items-center justify-center text-brand">
+    <div className="flex-1 flex flex-col items-center gap-2 py-4">
+      <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-primary">
         <Icon size={16} strokeWidth={2} />
       </div>
-      <p className="text-[18px] font-display font-bold text-content-primary leading-none">
-        {value}
-      </p>
-      <p className="text-[10px] font-body text-content-tertiary text-center leading-tight">
-        {label}
-      </p>
+      <p className="type-heading text-foreground leading-none">{value}</p>
+      <p className="type-micro text-muted-foreground text-center">{label}</p>
     </div>
   );
 }
+
+// ─── Menu Row ─────────────────────────────────────────────────────────────────
+// Rule 06: destructive action uses destructive token (red = irreversible action).
+// Rule 01: icon bg for danger uses destructive/10 — no hardcoded red-50.
+// Rule 04: label → type-body, sublabel → type-micro.
 
 interface MenuRowProps {
   icon: React.ElementType;
@@ -75,87 +65,77 @@ interface MenuRowProps {
   sublabel?: string;
   danger?: boolean;
   badge?: string;
-  delay?: number;
 }
 
-function MenuRow({ icon: Icon, label, sublabel, danger, badge, delay = 0 }: MenuRowProps) {
+function MenuRow({ icon: Icon, label, sublabel, danger, badge }: MenuRowProps) {
   return (
-    <button
-      className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:bg-surface-muted transition-colors animate-fade-up"
-      style={{ animationDelay: `${delay}ms` }}
-    >
+    <button className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-muted transition-colors">
       <div
         className={[
           'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0',
-          danger ? 'bg-red-50' : 'bg-surface-muted',
+          danger ? 'bg-destructive/10' : 'bg-muted',
         ].join(' ')}
       >
         <Icon
           size={18}
           strokeWidth={1.75}
-          className={danger ? 'text-red-500' : 'text-content-secondary'}
+          className={danger ? 'text-destructive' : 'text-muted-foreground'}
         />
       </div>
       <div className="flex-1 min-w-0">
         <p
           className={[
-            'text-[14px] font-body font-medium leading-snug',
-            danger ? 'text-red-500' : 'text-content-primary',
+            'type-body leading-snug',
+            danger ? 'text-destructive' : 'text-foreground',
           ].join(' ')}
         >
           {label}
         </p>
         {sublabel && (
-          <p className="text-[11px] font-body text-content-tertiary mt-0.5">
-            {sublabel}
-          </p>
+          <p className="type-micro text-muted-foreground mt-0.5">{sublabel}</p>
         )}
       </div>
       {badge && (
-        <span className="text-[9px] font-display font-bold px-2 py-0.5 rounded-full bg-brand-subtle text-brand border border-brand-muted uppercase tracking-wider">
+        <Badge variant="secondary" className="type-micro shrink-0">
           {badge}
-        </span>
+        </Badge>
       )}
       {!danger && (
-        <ChevronRight
-          size={16}
-          strokeWidth={1.75}
-          className="text-content-tertiary flex-shrink-0"
-        />
+        <ChevronRight size={16} strokeWidth={1.75} className="text-muted-foreground flex-shrink-0" />
       )}
     </button>
   );
 }
 
-function SectionHeader({ title }: { title: string }) {
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionLabel({ title }: { title: string }) {
   return (
-    <p className="px-4 pt-5 pb-2 text-[11px] font-display font-semibold text-content-tertiary uppercase tracking-widest">
+    <p className="type-micro text-muted-foreground uppercase tracking-widest px-4 pt-5 pb-2">
       {title}
     </p>
   );
 }
 
-// ─── Usage Mini-Chart ─────────────────────────────────────────────────────────
+// ─── Usage Bar Chart ──────────────────────────────────────────────────────────
+// Rule 06: single color (primary) for all bars — consistent, no rainbow.
+// Rule 01: uses bg-primary and bg-muted semantic tokens.
 
 function UsageBars({ history }: { history: { date: string; tokens: number }[] }) {
   const max = Math.max(...history.map((h) => h.tokens));
   return (
-    <div className="flex items-end gap-1.5 h-12">
-      {history.map((h, i) => {
+    <div className="flex items-end gap-1.5 h-14">
+      {history.map((h) => {
         const pct = (h.tokens / max) * 100;
         return (
           <div key={h.date} className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full rounded-t-sm bg-surface-strong overflow-hidden" style={{ height: '36px' }}>
+            <div className="w-full bg-muted rounded-t-sm overflow-hidden" style={{ height: '42px' }}>
               <div
-                className="w-full bg-brand rounded-t-sm transition-all duration-500"
-                style={{
-                  height: `${pct}%`,
-                  marginTop: `${100 - pct}%`,
-                  animationDelay: `${i * 50}ms`,
-                }}
+                className="w-full bg-primary rounded-t-sm transition-all duration-500"
+                style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
               />
             </div>
-            <span className="text-[9px] text-content-tertiary font-body">{h.date}</span>
+            <span className="type-micro text-muted-foreground">{h.date}</span>
           </div>
         );
       })}
@@ -169,125 +149,106 @@ export default function ProfilePage() {
   const { data } = useMockData();
   const { user, stats, usageHistory } = data;
 
-  const plan = PLAN_STYLES[user.plan] ?? PLAN_STYLES['Free'];
   const tokenPct = Math.round((stats.tokensUsed / stats.tokenLimit) * 100);
 
+  // Rule 06: plan badge uses secondary (brand-tinted) for Pro; muted for others.
+  // No blue-50 or custom palette — only the token system.
+  const planVariant = user.plan === 'Pro' ? 'secondary' : 'outline';
+
   return (
-    <div className="min-h-screen bg-surface-base">
-      {/* Hero section */}
-      <div className="bg-surface-elevated px-5 pt-14 pb-6 shadow-card">
+    <div className="min-h-screen bg-background">
+
+      {/* ── Hero ── */}
+      <div className="bg-card border-b border-border px-screen pt-14 pb-6">
         <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center flex-shrink-0 shadow-action">
-            <span className="text-[22px] font-display font-bold text-white">
+          {/* Rule 03: Avatar is the brand surface — bg-primary, text-primary-foreground */}
+          <Avatar className="w-16 h-16 rounded-2xl">
+            <AvatarFallback className="rounded-2xl bg-primary text-primary-foreground type-heading">
               {user.initials}
-            </span>
-          </div>
+            </AvatarFallback>
+          </Avatar>
 
-          {/* Name & plan */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-[20px] font-display font-bold text-content-primary leading-tight">
-              {user.name}
-            </h1>
-            <p className="text-[12px] font-body text-content-tertiary mt-0.5 truncate">
-              {user.email}
-            </p>
+            <h1 className="type-heading text-foreground leading-tight">{user.name}</h1>
+            <p className="type-caption text-muted-foreground mt-0.5 truncate">{user.email}</p>
             <div className="mt-2 flex items-center gap-2">
-              <span
-                className={[
-                  'text-[10px] font-display font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider',
-                  plan.bg,
-                  plan.text,
-                  plan.border,
-                ].join(' ')}
-              >
+              <Badge variant={planVariant} className="type-micro uppercase tracking-wider">
                 {user.plan} Plan
-              </span>
-              <span className="text-[11px] font-body text-content-tertiary">
-                Since {user.joinedDate}
-              </span>
+              </Badge>
+              <span className="type-micro text-muted-foreground">Since {user.joinedDate}</span>
             </div>
           </div>
         </div>
 
-        {/* Stat pills */}
-        <div className="mt-5 flex divide-x divide-border bg-surface-muted rounded-card overflow-hidden">
-          <StatPill
-            label="Conversations"
-            value={String(stats.totalConversations)}
-            icon={MessageSquare}
-          />
-          <StatPill
-            label="Tokens used"
-            value={formatTokens(stats.tokensUsed)}
-            icon={Zap}
-          />
-          <StatPill
-            label="Day streak"
-            value={`${stats.streakDays}d`}
-            icon={Flame}
-          />
+        {/* Stat pills — all use the same secondary/primary treatment */}
+        <div className="mt-5 flex divide-x divide-border bg-muted rounded-xl overflow-hidden">
+          <StatPill label="Conversations" value={String(stats.totalConversations)} icon={MessageSquare} />
+          <StatPill label="Tokens used"   value={formatTokens(stats.tokensUsed)}   icon={Zap} />
+          <StatPill label="Day streak"    value={`${stats.streakDays}d`}            icon={Flame} />
         </div>
       </div>
 
-      {/* Usage chart section */}
-      <div className="px-4 pt-5">
-        <div className="bg-surface-elevated rounded-card shadow-card px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-display font-semibold text-content-primary">
-              Weekly token usage
-            </p>
-            <p className="text-[12px] font-body text-content-tertiary">
-              {tokenPct}% of monthly quota
-            </p>
-          </div>
-          <UsageBars history={usageHistory} />
-          {/* Quota bar */}
-          <div className="mt-4 space-y-1.5">
-            <div className="h-1.5 bg-surface-strong rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand rounded-full"
-                style={{ width: `${tokenPct}%` }}
-              />
+      {/* ── Usage chart ── */}
+      <div className="px-screen pt-5">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <p className="type-label text-foreground font-semibold">Weekly token usage</p>
+              <p className="type-micro text-muted-foreground">{tokenPct}% of quota</p>
             </div>
-            <div className="flex justify-between text-[10px] font-body text-content-tertiary">
-              <span>{formatTokens(stats.tokensUsed)} used</span>
-              <span>{formatTokens(stats.tokenLimit)} limit</span>
+            <UsageBars history={usageHistory} />
+            <div className="mt-4 flex flex-col gap-list">
+              <Progress value={tokenPct} className="h-1.5" />
+              <div className="flex justify-between">
+                <span className="type-micro text-muted-foreground">{formatTokens(stats.tokensUsed)} used</span>
+                <span className="type-micro text-muted-foreground">{formatTokens(stats.tokenLimit)} limit</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Menu sections */}
-      <div className="pb-4">
-        <SectionHeader title="Account" />
-        <div className="bg-surface-elevated rounded-card shadow-card overflow-hidden divide-y divide-border mx-4">
-          <MenuRow icon={CreditCard} label="Billing & Plan" sublabel="Pro — renews Dec 1" delay={0} />
-          <MenuRow icon={KeyRound} label="API Keys" sublabel="3 active keys" delay={30} />
-          <MenuRow icon={Users} label="Team members" sublabel="2 of 5 seats used" delay={60} />
+      {/* ── Settings menu ── */}
+      <div className="pb-nav flex flex-col gap-list">
+        <SectionLabel title="Account" />
+        <Card className="mx-screen p-0 overflow-hidden">
+          <CardContent className="p-0 divide-y divide-border">
+            <MenuRow icon={CreditCard} label="Billing & Plan"  sublabel="Pro — renews Dec 1" />
+            <MenuRow icon={KeyRound}   label="API Keys"        sublabel="3 active keys" />
+            <MenuRow icon={Users}      label="Team members"    sublabel="2 of 5 seats used" />
+          </CardContent>
+        </Card>
+
+        <SectionLabel title="Workspace" />
+        <Card className="mx-screen p-0 overflow-hidden">
+          <CardContent className="p-0 divide-y divide-border">
+            <MenuRow icon={BookOpen}  label="Prompt Library"    sublabel="12 saved prompts" badge="New" />
+            <MenuRow icon={BarChart2} label="Usage Analytics"   sublabel="Full breakdown" />
+          </CardContent>
+        </Card>
+
+        <SectionLabel title="Preferences" />
+        <Card className="mx-screen p-0 overflow-hidden">
+          <CardContent className="p-0 divide-y divide-border">
+            <MenuRow icon={Bell}        label="Notifications" />
+            <MenuRow icon={Shield}      label="Privacy & Security" />
+            <MenuRow icon={HelpCircle}  label="Help & Support" />
+          </CardContent>
+        </Card>
+
+        <div className="mx-screen">
+          <Card className="p-0 overflow-hidden">
+            <CardContent className="p-0">
+              <MenuRow icon={LogOut} label="Sign out" danger />
+            </CardContent>
+          </Card>
         </div>
 
-        <SectionHeader title="Workspace" />
-        <div className="bg-surface-elevated rounded-card shadow-card overflow-hidden divide-y divide-border mx-4">
-          <MenuRow icon={BookOpen} label="Prompt Library" sublabel="12 saved prompts" badge="New" delay={0} />
-          <MenuRow icon={BarChart2} label="Usage Analytics" sublabel="Full breakdown" delay={30} />
-        </div>
-
-        <SectionHeader title="Preferences" />
-        <div className="bg-surface-elevated rounded-card shadow-card overflow-hidden divide-y divide-border mx-4">
-          <MenuRow icon={Bell} label="Notifications" delay={0} />
-          <MenuRow icon={Shield} label="Privacy & Security" delay={30} />
-          <MenuRow icon={HelpCircle} label="Help & Support" delay={60} />
-        </div>
-
-        <div className="mt-3 mx-4 bg-surface-elevated rounded-card shadow-card overflow-hidden">
-          <MenuRow icon={LogOut} label="Sign out" danger delay={0} />
-        </div>
-
-        <p className="text-center text-[10px] font-body text-content-tertiary mt-5 mb-2">
+        <p className="type-micro text-muted-foreground text-center mt-5 mb-2">
           Synthex v1.0.0 · {user.timezone}
         </p>
       </div>
+
     </div>
   );
 }
