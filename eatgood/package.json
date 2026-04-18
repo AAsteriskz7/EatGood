@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@google/generative-ai": "^0.24.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "react-webcam": "^7.2.0"
+  }
+}
