@@ -1,0 +1,128 @@
+CORE PRODUCT FEATURES
+
+1. Personalized User Profile & Onboarding
+- Create health profile (age, sex, height, weight, activity level)
+- Dietary preferences (vegan, gluten-free, etc.)
+- Allergies & restrictions
+- Health goals (fat loss, muscle gain, etc.)
+- Auto-calculations:
+  - BMI
+  - Daily calorie needs
+  - Goal-based calorie target
+  - Macronutrient ranges
+
+2. Restaurant Discovery Map
+- Map with nearby restaurants
+- Pins for healthy/goal-compatible options
+- Filters:
+  - Vegan, vegetarian, gluten-free
+  - Low sodium, high protein, low calorie
+  - Allergy-friendly
+- Restaurant detail card:
+  - Name + distance
+  - Healthy menu items
+  - Personalized recommendation reasoning
+  - Nutrition highlights
+
+3. Smart Meal Recommendation Engine
+- Suggests what to eat based on:
+  - Calorie target
+  - Goal (lose/gain/maintain)
+  - Activity level
+  - Dietary restrictions
+  - Time of day
+  - Foods already eaten
+- Explains why recommendations fit
+- Suggests foods to avoid:
+  - High sugar
+  - High sodium
+  - Empty calories
+- Non-judgmental explanations
+
+4. Daily Food Logging
+- Manual food entry
+- Track:
+  - Calories
+  - Protein, carbs, fats
+  - Sodium, sugar
+  - Serving size
+- Running daily totals
+- Compare against targets
+- Edit/delete entries
+
+5. Camera-Based Food Recognition
+- Scan meals or menus
+- Detect:
+  - Food type
+  - Estimated calories
+  - Nutrition info
+  - Goal compatibility
+- Fast, low-friction UX
+
+6. Fridge / Pantry Scan Mode
+- Scan available ingredients
+- Outputs:
+  - Meal suggestions
+  - Snack ideas
+  - Simple recipes
+- Personalized to goals + restrictions
+
+7. Progress Dashboard
+- Visual overview:
+  - Calories consumed vs remaining
+  - Macro breakdown
+  - BMI
+  - Weight progress
+  - Healthy vs unhealthy trends
+
+8. Healthy Choice Nudges
+- Proactive notifications:
+  - Healthier nearby options
+  - Calorie warnings
+  - Snack swaps
+  - Hydration reminders
+
+9. Schedule- & Location-Aware Suggestions
+- Uses calendar + location
+- Pre-meal recommendations
+- Quick meal suggestions for busy schedules
+- Nearby fast healthy options
+
+10. Meal Quality Scoring
+- Ratings:
+  - Great choice
+  - Good in moderation
+  - Avoid for today
+
+11. Saved Preferences & Favorites
+- Save:
+  - Restaurants
+  - Meals
+  - Orders
+  - Filters
+
+12. Goal-Based Modes
+- Modes:
+  - Fat loss
+  - Muscle gain
+  - Maintenance
+  - Healthier eating
+  - Low sodium / heart health
+
+13. Snack Replacement Suggestions
+- Chips → popcorn/protein snacks
+- Soda → sparkling water
+- Candy → fruit + yogurt
+
+14. Accessibility & Ease of Use
+- Minimal typing
+- Fast interactions
+- Clean mobile UI
+
+FUTURE FEATURES
+- Weight tracking
+- Wearable integration
+- Barcode scanning
+- Grocery recommendations
+- Weekly meal planning
+- AI habit insights
